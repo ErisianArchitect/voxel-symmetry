@@ -9,8 +9,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f4575a928813120f1c29dff9037d0827a9a52991954410f7be605c81acbed24"
 
 [[package]]
+name = "paste"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
 name = "voxel-symmetry"
 version = "0.1.0"
 dependencies = [
  "isit",
+ "paste",
 ]
