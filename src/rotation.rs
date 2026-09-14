@@ -308,6 +308,18 @@ impl Rot {
 
     #[must_use]
     #[inline(always)]
+    pub const fn local_rotate_by(self, rotation: Self) -> Self {
+        rotation.rotate_by(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn local_rotate_by_inverse(self, rotation: Self) -> Self {
+        rotation.rotate_by_inverse(rotation)
+    }
+
+    #[must_use]
+    #[inline(always)]
     pub const fn invert(self) -> Self {
         const TABLE: [Rot; 24] = {
             let mut table = [Rot::IDENTITY; 24];
@@ -413,6 +425,21 @@ impl Rot {
             table
         };
         TABLE[self as usize][other as usize]
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn conjugate(self, rotation: Self) -> Self {
+        // 24 * 24 = 576
+        const TABLE: [[Rot; 24]; 24] = {
+            let mut table = [[Rot::IDENTITY; 24]; 24];
+            let mut it = Rot::cartesian_product();
+            while let Some([lhs, rhs]) = it.next() {
+                table[lhs as usize][rhs as usize] = lhs.invert().rotate_by(rhs).rotate_by(lhs);
+            }
+            table
+        };
+        TABLE[self as usize][rotation as usize]
     }
 
     // --- MISCELLANEOUS ---
