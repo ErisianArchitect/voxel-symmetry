@@ -2,8 +2,8 @@
 use crate::{
     Face,
     FaceIter,
-    Rotation,
-    RotationIter,
+    Rot,
+    RotIter,
 };
 
 #[unsafe(no_mangle)]
@@ -121,15 +121,15 @@ pub extern "C" fn sym_face_ne(lhs: Face, rhs: Face) -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub static SYM_ROT_IDENTITY: Rotation = Rotation::IDENTITY;
+pub static SYM_ROT_IDENTITY: Rot = Rot::IDENTITY;
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_new(up: Face, angle: i8) -> Rotation {
-    Rotation::new(up, angle)
+pub extern "C" fn sym_rot_new(up: Face, angle: i8) -> Rot {
+    Rot::new(up, angle)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_angle(rot: Rotation) -> i8 {
+pub extern "C" fn sym_rot_angle(rot: Rot) -> i8 {
     rot.angle()
 }
 
@@ -141,24 +141,24 @@ pub struct UpAngle {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_up_angle(rot: Rotation) -> UpAngle {
+pub extern "C" fn sym_rot_up_angle(rot: Rot) -> UpAngle {
     let (up, angle) = rot.up_angle();
     UpAngle { up, angle }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_face_dest(rot: Rotation, face: Face) -> Face {
+pub extern "C" fn sym_rot_face_dest(rot: Rot, face: Face) -> Face {
     rot.face_dest(face)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_face_src(rot: Rotation, face: Face) -> Face {
+pub extern "C" fn sym_rot_face_src(rot: Rot, face: Face) -> Face {
     rot.face_src(face)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_from_up_and_forward(up: Face, forward: Face, out: &mut Rotation) -> bool {
-    if let Some(rot) = Rotation::from_up_and_forward(up, forward) {
+pub extern "C" fn sym_rot_from_up_and_forward(up: Face, forward: Face, out: &mut Rot) -> bool {
+    if let Some(rot) = Rot::from_up_and_forward(up, forward) {
         *out = rot;
         true
     } else {
@@ -167,27 +167,27 @@ pub extern "C" fn sym_rot_from_up_and_forward(up: Face, forward: Face, out: &mut
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_rotate_by(target: Rotation, rotation: Rotation) -> Rotation {
+pub extern "C" fn sym_rot_rotate_by(target: Rot, rotation: Rot) -> Rot {
     target.rotate_by(rotation)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_rotate_by_inverse(target: Rotation, rotation: Rotation) -> Rotation {
+pub extern "C" fn sym_rot_rotate_by_inverse(target: Rot, rotation: Rot) -> Rot {
     target.rotate_by_inverse(rotation)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_invert(target: Rotation) -> Rotation {
+pub extern "C" fn sym_rot_invert(target: Rot) -> Rot {
     target.invert()
 }
 
 macro_rules! target_rot_func {
     ($(
-        fn $fn_name:ident($target:ident : Rotation) -> $ret:ty => $expr:expr
+        fn $fn_name:ident($target:ident : Rot) -> $ret:ty => $expr:expr
     ),+$(,)?) => {
         $(
             #[unsafe(no_mangle)]
-            pub extern "C" fn $fn_name($target: Rotation) -> $ret {
+            pub extern "C" fn $fn_name($target: Rot) -> $ret {
                 $expr
             }
         )*
@@ -195,40 +195,40 @@ macro_rules! target_rot_func {
 }
 
 target_rot_func! {
-    fn sym_rot_neg_x_dest(target: Rotation) -> Face => target.neg_x_dest(),
-    fn sym_rot_neg_y_dest(target: Rotation) -> Face => target.neg_y_dest(),
-    fn sym_rot_neg_z_dest(target: Rotation) -> Face => target.neg_z_dest(),
-    fn sym_rot_pos_x_dest(target: Rotation) -> Face => target.pos_x_dest(),
-    fn sym_rot_pos_y_dest(target: Rotation) -> Face => target.pos_y_dest(),
-    fn sym_rot_pos_z_dest(target: Rotation) -> Face => target.pos_z_dest(),
+    fn sym_rot_neg_x_dest(target: Rot) -> Face => target.neg_x_dest(),
+    fn sym_rot_neg_y_dest(target: Rot) -> Face => target.neg_y_dest(),
+    fn sym_rot_neg_z_dest(target: Rot) -> Face => target.neg_z_dest(),
+    fn sym_rot_pos_x_dest(target: Rot) -> Face => target.pos_x_dest(),
+    fn sym_rot_pos_y_dest(target: Rot) -> Face => target.pos_y_dest(),
+    fn sym_rot_pos_z_dest(target: Rot) -> Face => target.pos_z_dest(),
     
-    fn sym_rot_neg_x_src(target: Rotation) -> Face => target.neg_x_src(),
-    fn sym_rot_neg_y_src(target: Rotation) -> Face => target.neg_y_src(),
-    fn sym_rot_neg_z_src(target: Rotation) -> Face => target.neg_z_src(),
-    fn sym_rot_pos_x_src(target: Rotation) -> Face => target.pos_x_src(),
-    fn sym_rot_pos_y_src(target: Rotation) -> Face => target.pos_y_src(),
-    fn sym_rot_pos_z_src(target: Rotation) -> Face => target.pos_z_src(),
+    fn sym_rot_neg_x_src(target: Rot) -> Face => target.neg_x_src(),
+    fn sym_rot_neg_y_src(target: Rot) -> Face => target.neg_y_src(),
+    fn sym_rot_neg_z_src(target: Rot) -> Face => target.neg_z_src(),
+    fn sym_rot_pos_x_src(target: Rot) -> Face => target.pos_x_src(),
+    fn sym_rot_pos_y_src(target: Rot) -> Face => target.pos_y_src(),
+    fn sym_rot_pos_z_src(target: Rot) -> Face => target.pos_z_src(),
 
-    fn sym_rot_up(target: Rotation) -> Face => target.up(),
-    fn sym_rot_down(target: Rotation) -> Face => target.down(),
-    fn sym_rot_left(target: Rotation) -> Face => target.left(),
-    fn sym_rot_right(target: Rotation) -> Face => target.right(),
-    fn sym_rot_forward(target: Rotation) -> Face => target.forward(),
-    fn sym_rot_backward(target: Rotation) -> Face => target.backward(),
+    fn sym_rot_up(target: Rot) -> Face => target.up(),
+    fn sym_rot_down(target: Rot) -> Face => target.down(),
+    fn sym_rot_left(target: Rot) -> Face => target.left(),
+    fn sym_rot_right(target: Rot) -> Face => target.right(),
+    fn sym_rot_forward(target: Rot) -> Face => target.forward(),
+    fn sym_rot_backward(target: Rot) -> Face => target.backward(),
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_face_angle(rot: Rotation, face: Face) -> i8 {
+pub extern "C" fn sym_rot_face_angle(rot: Rot, face: Face) -> i8 {
     rot.face_angle(face)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_iter() -> RotationIter {
-    RotationIter::new()
+pub extern "C" fn sym_rot_iter() -> RotIter {
+    RotIter::new()
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_iter_next(iter: &mut RotationIter, out: &mut Rotation) -> bool {
+pub extern "C" fn sym_rot_iter_next(iter: &mut RotIter, out: &mut Rot) -> bool {
     match iter.next() {
         Some(next) => {
             *out = next;
@@ -239,11 +239,11 @@ pub extern "C" fn sym_rot_iter_next(iter: &mut RotationIter, out: &mut Rotation)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_eq(lhs: Rotation, rhs: Rotation) -> bool {
+pub extern "C" fn sym_rot_eq(lhs: Rot, rhs: Rot) -> bool {
     lhs.eq(rhs)
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn sym_rot_ne(lhs: Rotation, rhs: Rotation) -> bool {
+pub extern "C" fn sym_rot_ne(lhs: Rot, rhs: Rot) -> bool {
     lhs.ne(rhs)
 }

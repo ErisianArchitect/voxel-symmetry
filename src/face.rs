@@ -70,6 +70,14 @@ pub enum Face {
     PosY = POS_Y_DISC,
     PosZ = POS_Z_DISC,
 }
+const _: () = isit::const_assert_all([
+    Face::UP as u8 == UP_DISC,
+    Face::RIGHT as u8 == RIGHT_DISC,
+    Face::FORWARD as u8 == FORWARD_DISC,
+    Face::LEFT as u8 == LEFT_DISC,
+    Face::BACKWARD as u8 == BACKWARD_DISC,
+    Face::DOWN as u8 == DOWN_DISC,
+]);
 
 impl Default for Face {
     #[inline(always)]
@@ -145,27 +153,26 @@ pub enum AngleDirection {
 }
 
 const fn face_at_angle(
-    direction: AngleDirection,
     up: FaceCayley<Face>,
     left: FaceCayley<Face>,
     down: FaceCayley<Face>,
     right: FaceCayley<Face>,
 ) -> [FaceCayley<Face>; 4] {
-    match direction {
-        AngleDirection::CW => {
-            [
-                up,
-                right,
-                down,
-                left,
-            ]
-        }
+    match Face::ANGLE_DIRECTION {
         AngleDirection::CCW => {
             [
                 up,
                 left,
                 down,
                 right,
+            ]
+        }
+        AngleDirection::CW => {
+            [
+                up,
+                right,
+                down,
+                left,
             ]
         }
     }
@@ -283,7 +290,6 @@ impl Face {
     // counter-clockwise angles, you can change
     // Self::ANGLE_DIRECTION to AngleDirection::CW.
     pub(crate) const UP_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
-        Self::ANGLE_DIRECTION,
         Self::UP_CAYLEY,
         Self::LEFT_CAYLEY,
         Self::DOWN_CAYLEY,
@@ -291,7 +297,6 @@ impl Face {
     );
 
     pub(crate) const LEFT_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
-        Self::ANGLE_DIRECTION,
         Self::LEFT_CAYLEY,
         Self::DOWN_CAYLEY,
         Self::RIGHT_CAYLEY,
@@ -299,7 +304,6 @@ impl Face {
     );
 
     pub(crate) const DOWN_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
-        Self::ANGLE_DIRECTION,
         Self::DOWN_CAYLEY,
         Self::RIGHT_CAYLEY,
         Self::UP_CAYLEY,
@@ -307,7 +311,6 @@ impl Face {
     );
 
     pub(crate) const RIGHT_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
-        Self::ANGLE_DIRECTION,
         Self::RIGHT_CAYLEY,
         Self::UP_CAYLEY,
         Self::LEFT_CAYLEY,

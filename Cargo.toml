@@ -39,11 +39,18 @@ left-hand-z-up = ["pos_z_up", "pos_x_right", "neg_y_forward"]
 right-hand-y-up = ["pos_y_up", "pos_x_right", "neg_z_forward"]
 right-hand-z-up = ["pos_z_up", "pos_x_right", "pos_y_forward"]
 
+# https://learnopengl.com/Getting-started/Coordinate-Systems
 opengl-coordinate-system = ["right-hand-y-up"]
+# https://learn.microsoft.com/en-us/windows/win32/direct3d9/coordinate-systems
 directx-coordinate-system = ["left-hand-y-up"]
+# https://docs.unity3d.com/6000.3/Documentation/ScriptReference/Vector3.html
 unity-coordinate-system = ["left-hand-y-up"]
+# https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_3d_scenes/model_export_considerations.html
+# https://docs.godotengine.org/en/4.4/classes/class_vector3.html
 godot-coordinate-system = ["right-hand-y-up"]
+# https://dev.epicgames.com/documentation/unreal-engine/coordinate-system-and-spaces-in-unreal-engine
 unreal-coordinate-system = ["pos_z_up", "pos_y_right", "pos_x_forward"]
+# https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
 gltf-coordinate-system = ["pos_y_up", "neg_x_right", "pos_z_forward"]
 
 [dependencies]

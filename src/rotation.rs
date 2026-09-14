@@ -7,13 +7,14 @@ use crate::{
     },
 };
 
+/// Calculates the rotation discriminant.
 const fn disc(face: Face, angle: i8) -> u8 {
     ((face as u8) << 2) | (angle & 3) as u8
 }
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Rotation {
+pub enum Rot {
     NX0 = disc(NegX, 0), NX1 = disc(NegX, 1), NX2 = disc(NegX, 2), NX3 = disc(NegX, 3),
     NY0 = disc(NegY, 0), NY1 = disc(NegY, 1), NY2 = disc(NegY, 2), NY3 = disc(NegY, 3),
     NZ0 = disc(NegZ, 0), NZ1 = disc(NegZ, 1), NZ2 = disc(NegZ, 2), NZ3 = disc(NegZ, 3),
@@ -21,12 +22,12 @@ pub enum Rotation {
     PY0 = disc(PosY, 0), PY1 = disc(PosY, 1), PY2 = disc(PosY, 2), PY3 = disc(PosY, 3),
     PZ0 = disc(PosZ, 0), PZ1 = disc(PosZ, 1), PZ2 = disc(PosZ, 2), PZ3 = disc(PosZ, 3),
 }
-const _: () = isit::assert_niche::<Rotation>();
+const _: () = isit::assert_niche::<Rot>();
 
-impl Default for Rotation {
+impl Default for Rot {
     #[inline(always)]
     fn default() -> Self {
-        unsafe { Rotation::from_u8_unchecked(0) }
+        unsafe { Rot::from_u8_unchecked(0) }
     }
 }
 
@@ -38,7 +39,7 @@ macro_rules! rotate_face_table_func {
             pub const fn $name(self) -> Face {
                 const TABLE: [Face; 24] = {
                     let mut table = [Face::UP; 24];
-                    let mut it = RotationIter::new();
+                    let mut it = RotIter::new();
                     while let Some(next) = it.next() {
                         table[next as usize] = next.face_dest(Face::$face);
                     }
@@ -60,7 +61,7 @@ macro_rules! face_dest_func {
             pub const fn $name(self) -> Face {
                 const TABLE: [Face; 24] = {
                     let mut table = [Face::UP; 24];
-                    let mut rot = Rotation::iter();
+                    let mut rot = Rot::iter();
                     while let Some(rot) = rot.next() {
                         table[rot as usize] = rot.face_dest($face);
                     }
@@ -82,7 +83,7 @@ macro_rules! face_src_func {
             pub const fn $name(self) -> Face {
                 const TABLE: [Face; 24] = {
                     let mut table = [Face::UP; 24];
-                    let mut rot = Rotation::iter();
+                    let mut rot = Rot::iter();
                     while let Some(rot) = rot.next() {
                         table[rot as usize] = rot.face_src($face);
                     }
@@ -101,19 +102,19 @@ macro_rules! rotate_by_func {
             #[inline(always)]
             pub const fn $func_name(self, $rotation: Self) -> Self {
                 // 24 * 24 = 576
-                const TABLE: [[Rotation; 24]; 24] = {
-                    let mut table = [[Rotation::IDENTITY; 24]; 24];
-                    let mut lhs = Rotation::iter();
+                const TABLE: [[Rot; 24]; 24] = {
+                    let mut table = [[Rot::IDENTITY; 24]; 24];
+                    let mut lhs = Rot::iter();
                     while let Some(lhs) = lhs.next() {
-                        let mut rhs = Rotation::iter();
+                        let mut rhs = Rot::iter();
                         while let Some(rhs) = rhs.next() {
                             let up = lhs.up();
                             let fwd = lhs.forward();
                             let reup = rhs.$function(up);
                             let refwd = rhs.$function(fwd);
-                            let opt_rot = Rotation::from_up_and_forward(reup, refwd);
+                            let opt_rot = Rot::from_up_and_forward(reup, refwd);
                             table[rhs as usize][lhs as usize] = unsafe {
-                                const _SAFETY: () = isit::assert_niche::<Rotation>();
+                                const _SAFETY: () = isit::assert_niche::<Rot>();
                                 ::core::mem::transmute(opt_rot)
                             };
                         }
@@ -126,7 +127,7 @@ macro_rules! rotate_by_func {
     };
 }
 
-impl Rotation {
+impl Rot {
     // --- CONSTANTS ---
     pub const IDENTITY: Self = unsafe {
         Self::from_u8_unchecked(0)
@@ -223,7 +224,7 @@ impl Rotation {
     pub const fn face_src(self, face: Face) -> Face {
         const TABLE: [[Face; 6]; 24] = {
             let mut table = [[Face::UP; 6]; 24];
-            let mut rot = Rotation::iter();
+            let mut rot = Rot::iter();
             while let Some(rot) = rot.next() {
                 let mut face = Face::iter();
                 while let Some(face) = face.next() {
@@ -248,7 +249,7 @@ impl Rotation {
     #[must_use]
     #[inline(always)]
     pub const fn from_up_and_forward(up: Face, forward: Face) -> Option<Self> {
-        const TABLE: [[Option<Rotation>; 6]; 6] = {
+        const TABLE: [[Option<Rot>; 6]; 6] = {
             let mut table = [[None; 6]; 6];
             let mut up = 0;
             let mut forward = 0;
@@ -259,26 +260,26 @@ impl Rotation {
                 match Face::ANGLE_DIRECTION {
                     AngleDirection::CW => {
                         if up_face.up().eq(fwd_face) {
-                            rotation = Some(Rotation::new(up_face, 0));
+                            rotation = Some(Rot::new(up_face, 0));
                         } else if up_face.right().eq(fwd_face) {
-                            rotation = Some(Rotation::new(up_face, 1));
+                            rotation = Some(Rot::new(up_face, 1));
                         } else if up_face.down().eq(fwd_face) {
-                            rotation = Some(Rotation::new(up_face, 2));
+                            rotation = Some(Rot::new(up_face, 2));
                         } else if up_face.left().eq(fwd_face) {
-                            rotation = Some(Rotation::new(up_face, 3));
+                            rotation = Some(Rot::new(up_face, 3));
                         } else {
                             rotation = None;
                         }
                     },
                     AngleDirection::CCW => {
                         if up_face.up().eq(fwd_face) {
-                            rotation = Some(Rotation::new(up_face, 0));
+                            rotation = Some(Rot::new(up_face, 0));
                         } else if up_face.left().eq(fwd_face) {
-                            rotation = Some(Rotation::new(up_face, 1));
+                            rotation = Some(Rot::new(up_face, 1));
                         } else if up_face.down().eq(fwd_face) {
-                            rotation = Some(Rotation::new(up_face, 2));
+                            rotation = Some(Rot::new(up_face, 2));
                         } else if up_face.right().eq(fwd_face) {
-                            rotation = Some(Rotation::new(up_face, 3));
+                            rotation = Some(Rot::new(up_face, 3));
                         } else {
                             rotation = None;
                         }
@@ -308,11 +309,11 @@ impl Rotation {
     #[must_use]
     #[inline(always)]
     pub const fn invert(self) -> Self {
-        const TABLE: [Rotation; 24] = {
-            let mut table = [Rotation::IDENTITY; 24];
-            let mut rot = Rotation::iter();
+        const TABLE: [Rot; 24] = {
+            let mut table = [Rot::IDENTITY; 24];
+            let mut rot = Rot::iter();
             while let Some(rot) = rot.next() {
-                table[rot as usize] = Rotation::IDENTITY.rotate_by_inverse(rot);
+                table[rot as usize] = Rot::IDENTITY.rotate_by_inverse(rot);
             }
             table
         };
@@ -354,7 +355,7 @@ impl Rotation {
     pub const fn face_angle(self, face: Face) -> i8 {
         const TABLE: [[i8; 6]; 24] = {
             let mut table = [[0; 6]; 24];
-            let mut rot = Rotation::iter();
+            let mut rot = Rot::iter();
             while let Some(rot) = rot.next() {
                 let mut face = Face::iter();
                 while let Some(face) = face.next() {
@@ -402,8 +403,8 @@ impl Rotation {
     
     #[must_use]
     #[inline(always)]
-    pub const fn iter() -> RotationIter {
-        RotationIter::new()
+    pub const fn iter() -> RotIter {
+        RotIter::new()
     }
 
     #[must_use]
@@ -421,11 +422,11 @@ impl Rotation {
 
 #[repr(transparent)]
 #[derive(Debug, Default, Clone, Hash)]
-pub struct RotationIter {
+pub struct RotIter {
     rot: u8,
 }
 
-impl RotationIter {
+impl RotIter {
     #[must_use]
     #[inline(always)]
     pub const fn new() -> Self {
@@ -433,9 +434,9 @@ impl RotationIter {
     }
     #[must_use]
     #[inline]
-    pub const fn next(&mut self) -> Option<Rotation> {
+    pub const fn next(&mut self) -> Option<Rot> {
         if self.rot < 24 {
-            let next = Some(unsafe { Rotation::from_u8_unchecked(self.rot) });
+            let next = Some(unsafe { Rot::from_u8_unchecked(self.rot) });
             self.rot += 1;
             next
         } else {
@@ -444,8 +445,8 @@ impl RotationIter {
     }
 }
 
-impl Iterator for RotationIter {
-    type Item = Rotation;
+impl Iterator for RotIter {
+    type Item = Rot;
 
     #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -459,7 +460,7 @@ mod tests {
 
     #[test]
     pub fn round_trip_test() {
-        for rot_x in Rotation::iter() {
+        for rot_x in Rot::iter() {
             for face in Face::iter() {
                 let dest = rot_x.face_dest(face);
                 let src = rot_x.face_src(dest);
@@ -467,8 +468,8 @@ mod tests {
             }
             let inverted = rot_x.invert();
             let rot_inv = inverted.rotate_by(rot_x);
-            assert_eq!(rot_inv, Rotation::IDENTITY);
-            for rot_y in Rotation::iter() {
+            assert_eq!(rot_inv, Rot::IDENTITY);
+            for rot_y in Rot::iter() {
                 let rotated = rot_x.rotate_by(rot_y);
                 let derotated = rotated.rotate_by_inverse(rot_y);
                 assert_eq!(rot_x, derotated);
@@ -478,9 +479,9 @@ mod tests {
 
     #[test]
     pub fn associativity_test() {
-        for rot_x in Rotation::iter() {
-            for rot_y in Rotation::iter() {
-                for rot_z in Rotation::iter() {
+        for rot_x in Rot::iter() {
+            for rot_y in Rot::iter() {
+                for rot_z in Rot::iter() {
                     let a = rot_x.rotate_by(rot_y).rotate_by(rot_z);
                     let b = rot_x.rotate_by(rot_y.rotate_by(rot_z));
                     assert_eq!(a, b);
