@@ -134,7 +134,7 @@ pub extern "C" fn sym_rot_angle(rot: Rotation) -> i8 {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct UpAngle {
     pub up: Face,
     pub angle: i8,
@@ -194,7 +194,7 @@ macro_rules! target_rot_func {
     };
 }
 
-target_rot_func!{
+target_rot_func! {
     fn sym_rot_neg_x_dest(target: Rotation) -> Face => target.neg_x_dest(),
     fn sym_rot_neg_y_dest(target: Rotation) -> Face => target.neg_y_dest(),
     fn sym_rot_neg_z_dest(target: Rotation) -> Face => target.neg_z_dest(),

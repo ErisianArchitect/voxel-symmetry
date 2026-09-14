@@ -3,6 +3,9 @@ name = "voxel-symmetry"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["rlib", "cdylib"]
+
 [features]
 default = [
   "pos_y_up", "pos_x_right", "neg_z_forward",
@@ -31,6 +34,18 @@ pos_x_forward = []
 pos_y_forward = []
 pos_z_forward = []
 
+left-hand-y-up = ["pos_y_up", "pos_x_right", "pos_z_forward"]
+left-hand-z-up = ["pos_z_up", "pos_x_right", "neg_y_forward"]
+right-hand-y-up = ["pos_y_up", "pos_x_right", "neg_z_forward"]
+right-hand-z-up = ["pos_z_up", "pos_x_right", "pos_y_forward"]
+
+opengl-coordinate-system = ["right-hand-y-up"]
+directx-coordinate-system = ["left-hand-y-up"]
+unity-coordinate-system = ["left-hand-y-up"]
+godot-coordinate-system = ["right-hand-y-up"]
+unreal-coordinate-system = ["pos_z_up", "pos_y_right", "pos_x_forward"]
+gltf-coordinate-system = ["pos_y_up", "neg_x_right", "pos_z_forward"]
+
 [dependencies]
-isit = "0.1.2"
+isit = { version = "0.1.3", features = ["no-std"] }
 paste = "1.0.15"

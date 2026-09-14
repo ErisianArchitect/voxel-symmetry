@@ -135,9 +135,10 @@ pub(crate) const fn face_cayley<T: Copy>(
 }
 
 /// The
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AngleDirection {
     /// Counter-clockwise
+    #[default]
     CCW = 0,
     ///  Clockwise
     CW = 1,
@@ -419,7 +420,7 @@ impl Face {
 }
 
 #[repr(transparent)]
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Hash)]
 pub struct FaceIter {
     pub(crate) face: u8,
 }

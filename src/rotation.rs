@@ -420,7 +420,7 @@ impl Rotation {
 }
 
 #[repr(transparent)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Hash)]
 pub struct RotationIter {
     rot: u8,
 }
@@ -432,6 +432,7 @@ impl RotationIter {
         Self { rot: 0 }
     }
     #[must_use]
+    #[inline]
     pub const fn next(&mut self) -> Option<Rotation> {
         if self.rot < 24 {
             let next = Some(unsafe { Rotation::from_u8_unchecked(self.rot) });
