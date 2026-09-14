@@ -1,4 +1,8 @@
 
+// The following code uses meta-programming and other
+// techniques to prepare the library for the configured
+// coordinate system.
+
 const UP_DISC: u8 = 0;
 const RIGHT_DISC: u8 = 1;
 const FORWARD_DISC: u8 = 2;
