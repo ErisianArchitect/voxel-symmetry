@@ -11,8 +11,10 @@ default = [
   "pos_y_up", "pos_x_right", "neg_z_forward",
 ]
 
+# Angles increase in the clockwise order.
 clockwise-angles = []
 
+# Exactly one `up` direction feature must be selected
 neg_x_up = []
 neg_y_up = []
 neg_z_up = []
@@ -20,6 +22,7 @@ pos_x_up = []
 pos_y_up = []
 pos_z_up = []
 
+# Exactly one `right` direction feature must be selected.
 neg_x_right = []
 neg_y_right = []
 neg_z_right = []
@@ -27,6 +30,7 @@ pos_x_right = []
 pos_y_right = []
 pos_z_right = []
 
+# Exactly one `forward` direction feature must be selected.
 neg_x_forward = []
 neg_y_forward = []
 neg_z_forward = []
@@ -34,6 +38,7 @@ pos_x_forward = []
 pos_y_forward = []
 pos_z_forward = []
 
+# Pre-configured coordinate systems.
 left-hand-y-up = ["pos_y_up", "pos_x_right", "pos_z_forward"]
 left-hand-z-up = ["pos_z_up", "pos_x_right", "neg_y_forward"]
 right-hand-y-up = ["pos_y_up", "pos_x_right", "neg_z_forward"]

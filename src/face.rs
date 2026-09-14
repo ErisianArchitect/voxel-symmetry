@@ -3,11 +3,15 @@
 // techniques to prepare the library for the configured
 // coordinate system.
 
+// The following directional constants determine the discriminant values for the `Face`enum.
+// These values ensure that orientations look the same regardless of coordinate system.
+// The order ensures that rotations increase in a certain logical order.
+
 const UP_DISC: u8 = 0;
-const RIGHT_DISC: u8 = 1;
-const FORWARD_DISC: u8 = 2;
-const LEFT_DISC: u8 = 3;
-const BACKWARD_DISC: u8 = 4;
+const FORWARD_DISC: u8 = 1;
+const LEFT_DISC: u8 = 2;
+const BACKWARD_DISC: u8 = 3;
+const RIGHT_DISC: u8 = 4;
 const DOWN_DISC: u8 = 5;
 
 const NEG_X_DISC: u8 = cfg_select!(
@@ -106,7 +110,10 @@ impl<T: Copy> FaceCayley<T> {
 }
 
 impl FaceCayley<Face> {
+    /// Return a new table based on this one but with each of the
+    /// faces inverted.
     #[must_use]
+    #[inline(always)]
     pub const fn invert(self) -> Self {
         Self([
             self.0[0].invert(),
@@ -119,6 +126,8 @@ impl FaceCayley<Face> {
     }
 }
 
+/// Create a new face Cayley table.
+/// This function ensures that each value ends up in the right slot.
 pub(crate) const fn face_cayley<T: Copy>(
     neg_x: T,
     neg_y: T,
@@ -139,6 +148,7 @@ pub(crate) const fn face_cayley<T: Copy>(
     table[Face::PosY as usize].write(pos_y);
     table[Face::PosZ as usize].write(pos_z);
     #[repr(C)]
+    #[derive(Clone, Copy)]
     union TableConvert<T: Copy> {
         uninit: [MaybeUninit<T>; 6],
         init: [T; 6],
@@ -146,7 +156,7 @@ pub(crate) const fn face_cayley<T: Copy>(
     FaceCayley(unsafe { TableConvert { uninit: table }.init })
 }
 
-/// The
+/// The angle direction indicates which direction angles increase in.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AngleDirection {
     /// Counter-clockwise
@@ -156,6 +166,7 @@ pub enum AngleDirection {
     CW = 1,
 }
 
+/// Create a Cayley table for face at angle tables, configured for the AngleDirection.
 const fn face_at_angle(
     up: FaceCayley<Face>,
     left: FaceCayley<Face>,
@@ -163,22 +174,8 @@ const fn face_at_angle(
     right: FaceCayley<Face>,
 ) -> [FaceCayley<Face>; 4] {
     match Face::ANGLE_DIRECTION {
-        AngleDirection::CCW => {
-            [
-                up,
-                left,
-                down,
-                right,
-            ]
-        }
-        AngleDirection::CW => {
-            [
-                up,
-                right,
-                down,
-                left,
-            ]
-        }
+        AngleDirection::CCW => [up, left, down, right],
+        AngleDirection::CW => [up, right, down, left],
     }
 }
 
@@ -237,11 +234,17 @@ const fn calc_face_left(face: Face) -> Face {
 impl Face {
     // --- CONFIGURATION CONSTANTS ---
 
+    /// The Up face within the configured coordinate system.
     pub const UP: Self = UP_DIRECTION;
+    /// The Right face within the configured coordinate system.
     pub const RIGHT: Self = RIGHT_DIRECTION;
+    /// The Forward face within the configured coordinate system.
     pub const FORWARD: Self = FORWARD_DIRECTION;
+    /// The Down face within the configured coordinate system.
     pub const DOWN: Self = UP_DIRECTION.invert();
+    /// The Left face within the configured coordinate system.
     pub const LEFT: Self = RIGHT_DIRECTION.invert();
+    /// The Backward face within the configured coordinate system.
     pub const BACKWARD: Self = FORWARD_DIRECTION.invert();
     
     /// The angle direction determines which direction that
@@ -266,7 +269,9 @@ impl Face {
     // ========================================
     // For each face of the cube, the face has an orientation
     // relative to the rest of the cube. These tables determine
-    // that orientation. You do not need to change these tables.
+    // that orientation. You do should not change these tables.
+
+    /// Determines which direction points upward relative to each face.
     pub(crate) const UP_CAYLEY:    FaceCayley<Face> = face_cayley(
         calc_face_up(NegX),
         calc_face_up(NegY),
@@ -275,6 +280,7 @@ impl Face {
         calc_face_up(PosY),
         calc_face_up(PosZ),
     );
+    /// Determines which direction points leftward relative to each face.
     pub(crate) const LEFT_CAYLEY:  FaceCayley<Face> = face_cayley(
         calc_face_left(NegX),
         calc_face_left(NegY),
@@ -283,16 +289,12 @@ impl Face {
         calc_face_left(PosY),
         calc_face_left(PosZ),
     );
+    /// Determines which direction points downward relative to each face.
     pub(crate) const DOWN_CAYLEY:  FaceCayley<Face> = Self::UP_CAYLEY.invert();
+    /// Determines which direction points rightward relative to each face.
     pub(crate) const RIGHT_CAYLEY: FaceCayley<Face> = Self::LEFT_CAYLEY.invert();
 
-    // Within this implementation of voxel orientations, we are
-    // going to use counter-clockwise angles. This means that at
-    // angle `0`, a face will be have its `UP` direction facing
-    // `UP`, and at angle `1`, the `UP` direction will be facing
-    // `LEFT`. If you would like to use
-    // counter-clockwise angles, you can change
-    // Self::ANGLE_DIRECTION to AngleDirection::CW.
+    /// Determines which direction points upward for each face at each angle.
     pub(crate) const UP_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
         Self::UP_CAYLEY,
         Self::LEFT_CAYLEY,
@@ -300,6 +302,7 @@ impl Face {
         Self::RIGHT_CAYLEY,
     );
 
+    /// Determines which direction points leftward for each face at each angle.
     pub(crate) const LEFT_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
         Self::LEFT_CAYLEY,
         Self::DOWN_CAYLEY,
@@ -307,6 +310,7 @@ impl Face {
         Self::UP_CAYLEY,
     );
 
+    /// Determines which direction points downward for each face at each angle.
     pub(crate) const DOWN_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
         Self::DOWN_CAYLEY,
         Self::RIGHT_CAYLEY,
@@ -314,6 +318,7 @@ impl Face {
         Self::LEFT_CAYLEY,
     );
 
+    /// Determines which direction points rightward for each face at each angle.
     pub(crate) const RIGHT_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
         Self::RIGHT_CAYLEY,
         Self::UP_CAYLEY,
@@ -322,7 +327,17 @@ impl Face {
     );
 
     //                                                      Order: NegX, NegY, NegZ, PosX, PosY, PosZ
+    /// The inversion of each face.
     pub(crate) const INVERT_CAYLEY: FaceCayley<Face> = face_cayley(PosX, PosY, PosZ, NegX, NegY, NegZ);
+
+    //                                                         Order: NegX, NegY, NegZ, PosX, PosY, PosZ
+    pub(crate) const INVERT_X_CAYLEY: FaceCayley<Face> = face_cayley(PosX, NegY, NegZ, NegX, PosY, PosZ);
+    pub(crate) const INVERT_Y_CAYLEY: FaceCayley<Face> = face_cayley(NegX, PosY, NegZ, PosX, NegY, PosZ);
+    pub(crate) const INVERT_Z_CAYLEY: FaceCayley<Face> = face_cayley(NegX, NegY, PosZ, PosX, PosY, NegZ);
+
+    pub(crate) const INVERT_XY_CAYLEY: FaceCayley<Face> = face_cayley(PosX, PosY, NegZ, NegX, NegY, PosZ);
+    pub(crate) const INVERT_XZ_CAYLEY: FaceCayley<Face> = face_cayley(PosX, NegY, PosZ, NegX, PosY, NegZ);
+    pub(crate) const INVERT_YZ_CAYLEY: FaceCayley<Face> = face_cayley(NegX, PosY, PosZ, PosX, NegY, NegZ);
 
     // --- CONSTRUCTORS ---
 
@@ -399,26 +414,75 @@ impl Face {
         Self::RIGHT_AT_ANGLE_CAYLEY[(angle & 3) as usize].get(self)
     }
 
+    /// Invert all axes.
     #[must_use]
     #[inline(always)]
     pub const fn invert(self) -> Self {
         Self::INVERT_CAYLEY.get(self)
     }
 
+    /// Invert the `X` axis.
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_x(self) -> Self {
+        Self::INVERT_X_CAYLEY.get(self)
+    }
+
+    /// Invert the `Y` axis.
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_y(self) -> Self {
+        Self::INVERT_Y_CAYLEY.get(self)
+    }
+
+    /// Invert the `Z` axis.
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_z(self) -> Self {
+        Self::INVERT_Z_CAYLEY.get(self)
+    }
+
+    /// Invert the `X` and `Y` axes.
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_xy(self) -> Self {
+        Self::INVERT_XY_CAYLEY.get(self)
+    }
+
+    /// Invert the `X` and `Z` axes.
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_xz(self) -> Self {
+        Self::INVERT_XZ_CAYLEY.get(self)
+    }
+
+    /// Invert the `Y` and `Z` axes.
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_yz(self) -> Self {
+        Self::INVERT_YZ_CAYLEY.get(self)
+    }
+
     // --- MISCELLANEOUS ---
 
+    /// Iterate faces in the discriminant order.
+    ///
+    /// # Note
+    /// The order is dependent on the coordinate system.
     #[must_use]
     #[inline(always)]
     pub const fn iter() -> FaceIter {
         FaceIter::new()
     }
 
+    /// Check `self` is equal to `other`.
     #[must_use]
     #[inline(always)]
     pub const fn eq(self, other: Self) -> bool {
         self as u8 == other as u8
     }
 
+    /// Check if `self` is not equal to `other`.
     #[must_use]
     #[inline(always)]
     pub const fn ne(self, other: Self) -> bool {
@@ -426,6 +490,7 @@ impl Face {
     }
 }
 
+/// An iterator of each [Face] in the order of their discriminants.
 #[repr(transparent)]
 #[derive(Debug, Default, Clone, Hash)]
 pub struct FaceIter {
@@ -433,6 +498,7 @@ pub struct FaceIter {
 }
 
 impl FaceIter {
+    /// Create a new [FaceIter], starting with [Face::UP].
     #[must_use]
     #[inline(always)]
     pub const fn new() -> Self {
@@ -441,21 +507,25 @@ impl FaceIter {
         }
     }
 
+    /// Get the current [Face], unless the iterator is exhausted, in
+    /// which case it will return [None].
     #[must_use]
     #[inline(always)]
     pub const fn current(&self) -> Option<Face> {
         Face::from_u8(self.face)
     }
 
+    /// Continue iteration, returning the current [Face] in the process.
     #[must_use]
     #[inline]
     pub const fn next(&mut self) -> Option<Face> {
-        if self.face >= 6 {
-            return None;
+        match self.current() {
+            None => None,
+            some => {
+                self.face += 1;
+                some
+            }
         }
-        let face = unsafe { Face::from_u8_unchecked(self.face) };
-        self.face += 1;
-        Some(face)
     }
 }
 
