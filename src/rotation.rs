@@ -129,9 +129,9 @@ macro_rules! rotate_by_func {
 
 impl Rot {
     // --- CONSTANTS ---
-    pub const IDENTITY: Self = unsafe {
-        Self::from_u8_unchecked(0)
-    };
+    pub const IDENTITY: Self = unsafe { Self::from_u8_unchecked(0) };
+    pub const MIN: Self = Self::IDENTITY;
+    pub const MAX: Self = unsafe { Self::from_u8_unchecked(23) };
 
     // --- CONSTRUCTORS ---
     
@@ -353,6 +353,7 @@ impl Rot {
     #[must_use]
     #[inline(always)]
     pub const fn face_angle(self, face: Face) -> i8 {
+        // 24 * 6 = 144
         const TABLE: [[i8; 6]; 24] = {
             let mut table = [[0; 6]; 24];
             let mut rot = Rot::iter();
@@ -399,12 +400,33 @@ impl Rot {
         TABLE[self as usize][face as usize]
     }
 
+    #[must_use]
+    #[inline(always)]
+    pub const fn diff(self, other: Self) -> Self {
+        // 24 * 24 = 576
+        const TABLE: [[Rot; 24]; 24] = {
+            let mut table = [[Rot::IDENTITY; 24]; 24];
+            let mut prod = Rot::cartesian_product();
+            while let Some([lhs, rhs]) = prod.next() {
+                table[lhs as usize][rhs as usize] = lhs.invert().rotate_by(rhs);
+            }
+            table
+        };
+        TABLE[self as usize][other as usize]
+    }
+
     // --- MISCELLANEOUS ---
     
     #[must_use]
     #[inline(always)]
     pub const fn iter() -> RotIter {
         RotIter::new()
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn cartesian_product<const PRODUCTS: usize>() -> CartesianRotIter<PRODUCTS> {
+        CartesianRotIter::new()
     }
 
     #[must_use]
@@ -456,6 +478,64 @@ impl Iterator for RotIter {
     type Item = Rot;
 
     #[inline(always)]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next()
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone)]
+pub struct CartesianRotIter<const PRODUCTS: usize> {
+    it: [u8; PRODUCTS],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+union CartTransmuter<const PRODUCTS: usize> {
+    u8_prods: [u8; PRODUCTS],
+    rot_prods: [Rot; PRODUCTS],
+}
+
+impl<const PRODUCTS: usize> CartesianRotIter<PRODUCTS> {
+    #[must_use]
+    #[inline(always)]
+    pub const fn new() -> Self {
+        Self { it: [0; _] }
+    }
+
+    #[must_use]
+    pub const fn current(&mut self) -> Option<[Rot; PRODUCTS]> {
+        if const { PRODUCTS == 0 } { return None; }
+        if self.it[0] > Rot::MAX as u8 { return None; }
+        Some(unsafe {
+            CartTransmuter { u8_prods: self.it }.rot_prods
+        })
+    }
+
+    #[must_use]
+    pub const fn next(&mut self) -> Option<[Rot; PRODUCTS]> {
+        if const { PRODUCTS == 0 } { return None; }
+        if self.it[0] > Rot::MAX as u8 { return None; }
+        let result = Some(unsafe {
+            CartTransmuter { u8_prods: self.it }.rot_prods
+        });
+        let mut i = PRODUCTS;
+        loop {
+            i -= 1;
+            if i == 0 || self.it[i] < 23 {
+                self.it[i] += 1;
+                break;
+            }
+            self.it[i] = 0;
+        }
+        result
+    }
+}
+
+impl<const PRODUCTS: usize> Iterator for CartesianRotIter<PRODUCTS> {
+    type Item = [Rot; PRODUCTS];
+
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.next()
     }

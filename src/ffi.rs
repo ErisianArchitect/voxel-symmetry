@@ -4,6 +4,7 @@ use crate::{
     FaceIter,
     Rot,
     RotIter,
+    CartesianRotIter,
 };
 
 #[unsafe(no_mangle)]
@@ -237,6 +238,34 @@ pub extern "C" fn sym_rot_iter_next(iter: &mut RotIter, out: &mut Rot) -> bool {
         None => false,
     }
 }
+
+macro_rules! rot_cartesian_product_funcs {
+    ($(
+        $n:literal
+    ),+$(,)?) => {
+        paste::paste!{
+            $(
+                #[unsafe(no_mangle)]
+                pub extern "C" fn [< sym_rot_cartesian_product $n >]() -> CartesianRotIter<$n> {
+                    Rot::cartesian_product()
+                }
+                
+                #[unsafe(no_mangle)]
+                pub extern "C" fn [< sym_rot_cartesian_product $n _next>](it: &mut CartesianRotIter<$n>, out: &mut [Rot; $n]) -> bool {
+                    match it.next() {
+                        Some(result) => {
+                            *out = result;
+                            true
+                        }
+                        None => false,
+                    }
+                }
+            )*
+        }
+    };
+}
+
+rot_cartesian_product_funcs!(2, 3, 4, 5, 6, 7, 8);
 
 #[unsafe(no_mangle)]
 pub extern "C" fn sym_rot_eq(lhs: Rot, rhs: Rot) -> bool {

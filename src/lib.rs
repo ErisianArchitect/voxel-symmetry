@@ -3,8 +3,8 @@ pub mod face;
 pub mod ffi;
 pub mod rotation;
 
-pub use face::{Face, FaceIter};
-pub use rotation::{Rot, RotIter};
+pub use face::*;
+pub use rotation::*;
 
 pub use Face::*;
 
