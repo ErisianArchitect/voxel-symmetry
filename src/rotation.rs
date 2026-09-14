@@ -187,12 +187,12 @@ impl Rot {
         #[must_use]
         const fn rotate_world_face(world: Face, up: Face, angle: i8) -> Face {
             match world {
-                Face::LEFT => up.left_at_angle(angle),
-                Face::DOWN => up.invert(),
-                Face::FORWARD => up.up_at_angle(angle),
-                Face::RIGHT => up.right_at_angle(angle),
                 Face::UP => up,
+                Face::RIGHT => up.right_at_angle(angle),
+                Face::FORWARD => up.up_at_angle(angle),
+                Face::LEFT => up.left_at_angle(angle),
                 Face::BACKWARD => up.down_at_angle(angle),
+                Face::DOWN => up.invert(),
             }
         }
         const TABLE: [[Face; 6]; 24] = {
