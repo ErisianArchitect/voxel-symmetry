@@ -1,6 +1,3 @@
-// up: 0, down: 3
-// right: 1, left: 4
-// forward: 2, backward: 5
 
 const UP_DISC: u8 = 0;
 const RIGHT_DISC: u8 = 1;
