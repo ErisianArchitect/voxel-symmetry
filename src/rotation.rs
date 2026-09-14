@@ -185,7 +185,7 @@ impl Rot {
     pub const fn face_dest(self, face: Face) -> Face {
         // 6 * 24 = 144
         #[must_use]
-        const fn rotate_world(world: Face, up: Face, angle: i8) -> Face {
+        const fn rotate_world_face(world: Face, up: Face, angle: i8) -> Face {
             match world {
                 Face::LEFT => up.left_at_angle(angle),
                 Face::DOWN => up.invert(),
@@ -203,7 +203,7 @@ impl Rot {
                 let rot_face = unsafe { Face::from_u8_unchecked(rot_index >> 2) };
                 let rot_angle = (rot_index & 3) as i8;
                 let world_face = unsafe { Face::from_u8_unchecked(face_index) };
-                table[rot_index as usize][face_index as usize] = rotate_world(world_face, rot_face, rot_angle);
+                table[rot_index as usize][face_index as usize] = rotate_world_face(world_face, rot_face, rot_angle);
                 if rot_index == 23 {
                     if face_index == 5 {
                         break;
