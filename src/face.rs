@@ -442,12 +442,9 @@ impl FaceIter {
     }
 
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn current(&self) -> Option<Face> {
-        if self.face >= 6 {
-            return None;
-        }
-        Some(unsafe { Face::from_u8_unchecked(self.face) })
+        Face::from_u8(self.face)
     }
 
     #[must_use]

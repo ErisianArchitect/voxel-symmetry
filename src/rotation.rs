@@ -432,15 +432,22 @@ impl RotIter {
     pub const fn new() -> Self {
         Self { rot: 0 }
     }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn current(&self) -> Option<Rot> {
+        Rot::from_u8(self.rot)
+    }
+    
     #[must_use]
     #[inline]
     pub const fn next(&mut self) -> Option<Rot> {
-        if self.rot < 24 {
-            let next = Some(unsafe { Rot::from_u8_unchecked(self.rot) });
-            self.rot += 1;
-            next
-        } else {
-            None
+        match self.current() {
+            None => None,
+            some => {
+                self.rot += 1;
+                some
+            }
         }
     }
 }
