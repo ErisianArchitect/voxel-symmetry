@@ -5,9 +5,9 @@
 const UP_DISC: u8 = 0;
 const RIGHT_DISC: u8 = 1;
 const FORWARD_DISC: u8 = 2;
-const DOWN_DISC: u8 = 3;
-const LEFT_DISC: u8 = 4;
-const BACKWARD_DISC: u8 = 5;
+const LEFT_DISC: u8 = 3;
+const BACKWARD_DISC: u8 = 4;
+const DOWN_DISC: u8 = 5;
 
 const NEG_X_DISC: u8 = cfg_select!(
     feature = "neg_x_up" => UP_DISC,
@@ -140,10 +140,10 @@ pub(crate) const fn face_cayley<T: Copy>(
 /// The
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AngleDirection {
-    ///  Clockwise
-    CW = 0,
     /// Counter-clockwise
-    CCW = 1,
+    CCW = 0,
+    ///  Clockwise
+    CW = 1,
 }
 
 const fn face_at_angle(
@@ -173,7 +173,7 @@ const fn face_at_angle(
     }
 }
 
-pub const UP_DIRECTION: Face = cfg_select!(
+const UP_DIRECTION: Face = cfg_select!(
     feature = "neg_x_up" => Face::NegX,
     feature = "neg_y_up" => Face::NegY,
     feature = "neg_z_up" => Face::NegZ,
@@ -183,7 +183,7 @@ pub const UP_DIRECTION: Face = cfg_select!(
     _ => compile_error!("Must have up direction feature enabled."),
 );
 
-pub const RIGHT_DIRECTION: Face = cfg_select!(
+const RIGHT_DIRECTION: Face = cfg_select!(
     feature = "neg_x_right" => Face::NegX,
     feature = "neg_y_right" => Face::NegY,
     feature = "neg_z_right" => Face::NegZ,
@@ -193,13 +193,14 @@ pub const RIGHT_DIRECTION: Face = cfg_select!(
     _ => compile_error!("Must have right direction feature enabled."),
 );
 
-pub const FORWARD_DIRECTION: Face = cfg_select!(
+const FORWARD_DIRECTION: Face = cfg_select!(
     feature = "neg_x_forward" => Face::NegX,
     feature = "neg_y_forward" => Face::NegY,
     feature = "neg_z_forward" => Face::NegZ,
     feature = "pos_x_forward" => Face::PosX,
     feature = "pos_y_forward" => Face::PosY,
     feature = "pos_z_forward" => Face::PosZ,
+    _ => compile_error!("Must have forward direction feature enabled."),
 );
 
 const fn calc_face_up(face: Face) -> Face {
@@ -225,7 +226,7 @@ const fn calc_face_left(face: Face) -> Face {
 }
 
 impl Face {
-    // --- CONSTANTS ---
+    // --- CONFIGURATION CONSTANTS ---
 
     pub const UP: Self = UP_DIRECTION;
     pub const RIGHT: Self = RIGHT_DIRECTION;
@@ -234,11 +235,9 @@ impl Face {
     pub const LEFT: Self = RIGHT_DIRECTION.invert();
     pub const BACKWARD: Self = FORWARD_DIRECTION.invert();
     
-    // --- CONFIGURATION CONSTANTS ---
-
     /// The angle direction determines which direction that
     /// angles increase, whether clockwise or counter-clockwise.
-    pub(crate) const ANGLE_DIRECTION: AngleDirection = cfg_select!(
+    pub const ANGLE_DIRECTION: AngleDirection = cfg_select!(
         feature = "clockwise-angles" => AngleDirection::CW,
         _ => AngleDirection::CCW,
     );
@@ -258,13 +257,7 @@ impl Face {
     // ========================================
     // For each face of the cube, the face has an orientation
     // relative to the rest of the cube. These tables determine
-    // that orientation. You do not need to change these tables
-    // if you change the discriminant order, `face_cayley`
-    // handles rearranging the table for the correct
-    // discriminant order. The only time that you need to change
-    // these tables if if you want to change the orientation of
-    // faces.
-    //                                                     Order: NegX, NegY, NegZ, PosX, PosY, PosZ | (The order determines each face's associated element)
+    // that orientation. You do not need to change these tables.
     pub(crate) const UP_CAYLEY:    FaceCayley<Face> = face_cayley(
         calc_face_up(NegX),
         calc_face_up(NegY),

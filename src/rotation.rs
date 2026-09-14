@@ -231,7 +231,7 @@ impl Rotation {
                     'found: {
                         while let Some(src) = src_face.next() {
                             let dest = rot.face_dest(src);
-                            if dest as u8 == face as u8 {
+                            if dest.eq(face) {
                                 table[rot as usize][face as usize] = src;
                                 break 'found;
                             }
@@ -258,26 +258,26 @@ impl Rotation {
                 let rotation;
                 match Face::ANGLE_DIRECTION {
                     AngleDirection::CW => {
-                        if up_face.up().as_u8() == fwd_face.as_u8() {
+                        if up_face.up().eq(fwd_face) {
                             rotation = Some(Rotation::new(up_face, 0));
-                        } else if up_face.right().as_u8() == fwd_face.as_u8() {
+                        } else if up_face.right().eq(fwd_face) {
                             rotation = Some(Rotation::new(up_face, 1));
-                        } else if up_face.down().as_u8() == fwd_face.as_u8() {
+                        } else if up_face.down().eq(fwd_face) {
                             rotation = Some(Rotation::new(up_face, 2));
-                        } else if up_face.left().as_u8() == fwd_face.as_u8() {
+                        } else if up_face.left().eq(fwd_face) {
                             rotation = Some(Rotation::new(up_face, 3));
                         } else {
                             rotation = None;
                         }
                     },
                     AngleDirection::CCW => {
-                        if up_face.up().as_u8() == fwd_face.as_u8() {
+                        if up_face.up().eq(fwd_face) {
                             rotation = Some(Rotation::new(up_face, 0));
-                        } else if up_face.left().as_u8() == fwd_face.as_u8() {
+                        } else if up_face.left().eq(fwd_face) {
                             rotation = Some(Rotation::new(up_face, 1));
-                        } else if up_face.down().as_u8() == fwd_face.as_u8() {
+                        } else if up_face.down().eq(fwd_face) {
                             rotation = Some(Rotation::new(up_face, 2));
-                        } else if up_face.right().as_u8() == fwd_face.as_u8() {
+                        } else if up_face.right().eq(fwd_face) {
                             rotation = Some(Rotation::new(up_face, 3));
                         } else {
                             rotation = None;
