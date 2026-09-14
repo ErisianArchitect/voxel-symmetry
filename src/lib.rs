@@ -97,7 +97,7 @@ pub type OpenGL = RightHandYUp;
 // [https://learn.microsoft.com/en-us/windows/win32/direct3d9/coordinate-systems]
 pub type DirectX = LeftHandYUp;
 
-macro_rules! check_axes_features {
+macro_rules! check_direction_features {
     ($(
         $on:literal != [$($off:literal),*$(,)?]
     ),+$(,)?) => {
@@ -118,7 +118,7 @@ macro_rules! check_axes_features {
     };
 }
 
-check_axes_features!(
+check_direction_features!(
     "neg_x_up" != [
         "neg_y_up", "neg_z_up", "pos_x_up", "pos_y_up", "pos_z_up",
         "neg_x_right", "pos_x_right",
