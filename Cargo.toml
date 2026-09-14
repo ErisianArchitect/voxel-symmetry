@@ -3,6 +3,34 @@ name = "voxel-symmetry"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = [
+  "pos_y_up", "pos_x_right", "neg_z_forward",
+]
+
+clockwise-angles = []
+
+neg_x_up = []
+neg_y_up = []
+neg_z_up = []
+pos_x_up = []
+pos_y_up = []
+pos_z_up = []
+
+neg_x_right = []
+neg_y_right = []
+neg_z_right = []
+pos_x_right = []
+pos_y_right = []
+pos_z_right = []
+
+neg_x_forward = []
+neg_y_forward = []
+neg_z_forward = []
+pos_x_forward = []
+pos_y_forward = []
+pos_z_forward = []
+
 [dependencies]
 isit = "0.1.2"
 paste = "1.0.15"
