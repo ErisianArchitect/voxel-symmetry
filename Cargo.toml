@@ -8,7 +8,7 @@ crate-type = ["rlib", "cdylib"]
 
 [features]
 default = [
-  "pos_y_up", "pos_x_right", "neg_z_forward",
+  "right-hand-y-up",
 ]
 
 # Angles increase in the clockwise order.
@@ -39,8 +39,8 @@ pos_y_forward = []
 pos_z_forward = []
 
 # Pre-configured coordinate systems.
-left-hand-y-up = ["pos_y_up", "pos_x_right", "pos_z_forward"]
-left-hand-z-up = ["pos_z_up", "pos_x_right", "neg_y_forward"]
+left-hand-y-up = ["pos_y_up", "pos_x_right", "pos_z_forward", "clockwise-angles"]
+left-hand-z-up = ["pos_z_up", "pos_x_right", "neg_y_forward", "clockwise-angles"]
 right-hand-y-up = ["pos_y_up", "pos_x_right", "neg_z_forward"]
 right-hand-z-up = ["pos_z_up", "pos_x_right", "pos_y_forward"]
 
@@ -54,7 +54,7 @@ unity-coordinate-system = ["left-hand-y-up"]
 # https://docs.godotengine.org/en/4.4/classes/class_vector3.html
 godot-coordinate-system = ["right-hand-y-up"]
 # https://dev.epicgames.com/documentation/unreal-engine/coordinate-system-and-spaces-in-unreal-engine
-unreal-coordinate-system = ["pos_z_up", "pos_y_right", "pos_x_forward"]
+unreal-coordinate-system = ["pos_z_up", "pos_y_right", "pos_x_forward", "clockwise-angles"]
 # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
 gltf-coordinate-system = ["pos_y_up", "neg_x_right", "pos_z_forward"]
 

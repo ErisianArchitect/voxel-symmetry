@@ -96,16 +96,17 @@ impl Default for Face {
 
 use Face::*;
 
-/// A padded Cayley table.
+/// A padded Cayley table for values associated with each [Face].
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
-pub(crate) struct FaceCayley<T: Copy>([T; 6]);
+pub struct FaceCayley<T: Copy>([T; 6]);
 
 impl<T: Copy> FaceCayley<T> {
+    /// Get the value stored for the given [Face].
     #[must_use]
     #[inline(always)]
-    pub const fn get(self, item: Face) -> T {
-        self.0[item as usize]
+    pub const fn get(self, face: Face) -> T {
+        self.0[face as usize]
     }
 }
 
@@ -339,6 +340,48 @@ impl Face {
     pub(crate) const INVERT_XZ_CAYLEY: FaceCayley<Face> = face_cayley(PosX, NegY, PosZ, NegX, PosY, NegZ);
     pub(crate) const INVERT_YZ_CAYLEY: FaceCayley<Face> = face_cayley(NegX, PosY, PosZ, PosX, NegY, NegZ);
 
+    pub(crate) const INVERT_VERTICAL_CAYLEY: FaceCayley<Face> = {
+        const fn calc(face: Face) -> Face {
+            match face {
+                Face::UP => Face::DOWN,
+                Face::DOWN => Face::UP,
+                other => other,
+            }
+        }
+        face_cayley(
+            calc(NegX), calc(NegY), calc(NegZ),
+            calc(PosX), calc(PosY), calc(PosZ),
+        )
+    };
+
+    pub(crate) const INVERT_LEFT_RIGHT_CAYLEY: FaceCayley<Face> = {
+        const fn calc(face: Face) -> Face {
+            match face {
+                Face::LEFT => Face::RIGHT,
+                Face::RIGHT => Face::LEFT,
+                other => other,
+            }
+        }
+        face_cayley(
+            calc(NegX), calc(NegY), calc(NegZ),
+            calc(PosX), calc(PosY), calc(PosZ),
+        )
+    };
+
+    pub(crate) const INVERT_FRONT_BACK_CAYLEY: FaceCayley<Face> = {
+        const fn calc(face: Face) -> Face {
+            match face {
+                Face::FORWARD => Face::BACKWARD,
+                Face::BACKWARD => Face::FORWARD,
+                other => other,
+            }
+        }
+        face_cayley(
+            calc(NegX), calc(NegY), calc(NegZ),
+            calc(PosX), calc(PosY), calc(PosZ),
+        )
+    };
+
     // --- CONSTRUCTORS ---
 
     #[must_use]
@@ -463,6 +506,24 @@ impl Face {
         Self::INVERT_YZ_CAYLEY.get(self)
     }
 
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_vertical(self) -> Self {
+        Self::INVERT_VERTICAL_CAYLEY.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_left_right(self) -> Self {
+        Self::INVERT_LEFT_RIGHT_CAYLEY.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_front_back(self) -> Self {
+        Self::INVERT_FRONT_BACK_CAYLEY.get(self)
+    }
+
     // --- MISCELLANEOUS ---
 
     /// Iterate faces in the discriminant order.
@@ -473,6 +534,12 @@ impl Face {
     #[inline(always)]
     pub const fn iter() -> FaceIter {
         FaceIter::new()
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub fn lexicographic_iter() -> <[Face; 6] as IntoIterator>::IntoIter {
+        [Face::NegX, Face::NegY, Face::NegZ, Face::PosX, Face::PosY, Face::PosZ].into_iter()
     }
 
     /// Check `self` is equal to `other`.
@@ -488,6 +555,85 @@ impl Face {
     pub const fn ne(self, other: Self) -> bool {
         self as u8 != other as u8
     }
+
+    #[must_use]
+    #[inline]
+    pub const fn to_coord_i8(self) -> [i8; 3] {
+        match self {
+            NegX => [-1 as _,  0 as _,  0 as _],
+            NegY => [ 0 as _, -1 as _,  0 as _],
+            NegZ => [ 0 as _,  0 as _, -1 as _],
+            PosX => [ 1 as _,  0 as _,  0 as _],
+            PosY => [ 0 as _,  1 as _,  0 as _],
+            PosZ => [ 0 as _,  0 as _,  1 as _],
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn to_coord_i16(self) -> [i16; 3] {
+        match self {
+            NegX => [-1 as _,  0 as _,  0 as _],
+            NegY => [ 0 as _, -1 as _,  0 as _],
+            NegZ => [ 0 as _,  0 as _, -1 as _],
+            PosX => [ 1 as _,  0 as _,  0 as _],
+            PosY => [ 0 as _,  1 as _,  0 as _],
+            PosZ => [ 0 as _,  0 as _,  1 as _],
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn to_coord_i32(self) -> [i32; 3] {
+        match self {
+            NegX => [-1 as _,  0 as _,  0 as _],
+            NegY => [ 0 as _, -1 as _,  0 as _],
+            NegZ => [ 0 as _,  0 as _, -1 as _],
+            PosX => [ 1 as _,  0 as _,  0 as _],
+            PosY => [ 0 as _,  1 as _,  0 as _],
+            PosZ => [ 0 as _,  0 as _,  1 as _],
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn to_coord_i64(self) -> [i64; 3] {
+        match self {
+            NegX => [-1 as _,  0 as _,  0 as _],
+            NegY => [ 0 as _, -1 as _,  0 as _],
+            NegZ => [ 0 as _,  0 as _, -1 as _],
+            PosX => [ 1 as _,  0 as _,  0 as _],
+            PosY => [ 0 as _,  1 as _,  0 as _],
+            PosZ => [ 0 as _,  0 as _,  1 as _],
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn to_coord_f32(self) -> [f32; 3] {
+        match self {
+            NegX => [-1 as _,  0 as _,  0 as _],
+            NegY => [ 0 as _, -1 as _,  0 as _],
+            NegZ => [ 0 as _,  0 as _, -1 as _],
+            PosX => [ 1 as _,  0 as _,  0 as _],
+            PosY => [ 0 as _,  1 as _,  0 as _],
+            PosZ => [ 0 as _,  0 as _,  1 as _],
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn to_coord_f64(self) -> [f64; 3] {
+        match self {
+            NegX => [-1 as _,  0 as _,  0 as _],
+            NegY => [ 0 as _, -1 as _,  0 as _],
+            NegZ => [ 0 as _,  0 as _, -1 as _],
+            PosX => [ 1 as _,  0 as _,  0 as _],
+            PosY => [ 0 as _,  1 as _,  0 as _],
+            PosZ => [ 0 as _,  0 as _,  1 as _],
+        }
+    }
+
 }
 
 /// An iterator of each [Face] in the order of their discriminants.
