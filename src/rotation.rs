@@ -16,6 +16,9 @@ use crate::{
         Face::*,
         AngleDirection,
     },
+    symmetry::{
+        Sym,
+    },
     align::*,
 };
 
@@ -632,6 +635,20 @@ impl Rot {
         (self.up(), self.angle())
     }
 
+    // --- BUILDERS ---
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn sym(self) -> Sym {
+        Sym::new(self, false)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn reflect(self) -> Sym {
+        Sym::new(self, true)
+    }
+
     // --- QUERIES ---
     
     #[must_use]
@@ -682,17 +699,8 @@ impl Rot {
             while let Some(rot) = rot.next() {
                 let mut face = Face::iter();
                 while let Some(face) = face.next() {
-                    let mut src_face = Face::iter();
-                    'found: {
-                        while let Some(src) = src_face.next() {
-                            let dest = rot.face_dest(src);
-                            if dest.eq(face) {
-                                table[rot as usize].0.set(face, src);
-                                break 'found;
-                            }
-                        }
-                        panic!("Not found.");
-                    }
+                    let dest = rot.face_dest(face);
+                    table[rot as usize].0.set(dest, face);
                 }
             }
             table

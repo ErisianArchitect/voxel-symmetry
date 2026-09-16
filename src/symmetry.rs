@@ -94,9 +94,10 @@ make_sym!{
 impl Sym {
     // --- CONSTANTS ---
 
-    pub const IDENTITY: Self = unsafe { Self::from_u8_unchecked(0) };
+    pub const IDENTITY: Self = Self::new(Rot::IDENTITY, false);
+    pub const REFLECTED: Self = Self::new(Rot::IDENTITY, true);
     pub const MIN: Self = Self::IDENTITY;
-    pub const MAX: Self = unsafe { Self::from_u8_unchecked(47) };
+    pub const MAX: Self = Self::new(Rot::MAX, true);
 
     // --- CONSTRUCTORS ---
 
@@ -143,6 +144,8 @@ impl Sym {
         unsafe { Self::from_u8_unchecked(self as u8 ^ 1) }
     }
 
+    #[must_use]
+    #[inline(always)]
     pub const fn face_dest(self, face: Face) -> Face {
         const TABLE: [Align8<FaceTable<Face>>; 48] = {
             let mut table = [Align8(FaceTable([Face::UP; _])); 48];
@@ -159,6 +162,8 @@ impl Sym {
         TABLE[self as usize].0.get(face)
     }
 
+    #[must_use]
+    #[inline(always)]
     pub const fn face_src(self, face: Face) -> Face {
         const TABLE: [Align8<FaceTable<Face>>; 48] = {
             let mut table = [Align8(FaceTable([Face::UP; _])); 48];
@@ -176,31 +181,65 @@ impl Sym {
     }
 
     pub const fn transform_by(self, transform: Sym) -> Self {
-        let reflected = self.is_reflected() ^ transform.is_reflected();
-        let up = self.face_dest(Face::UP);
-        let fwd = self.face_dest(Face::FORWARD);
-        let trans_up = transform.face_dest(up);
-        let trans_fwd = transform.face_dest(fwd);
-        let final_up = trans_up.invert_if(reflected);
-        let final_fwd = trans_fwd.invert_if(reflected);
-        let rot: Rot = unsafe {
-            ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
+        const fn transform_by(target: Sym, transform: Sym) -> Sym {
+            let reflected = target.is_reflected() ^ transform.is_reflected();
+            let up = target.face_dest(Face::UP);
+            let fwd = target.face_dest(Face::FORWARD);
+            let trans_up = transform.face_dest(up);
+            let trans_fwd = transform.face_dest(fwd);
+            let final_up = trans_up.invert_if(reflected);
+            let final_fwd = trans_fwd.invert_if(reflected);
+            let rot: Rot = unsafe {
+                ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
+            };
+            Sym::new(rot, reflected)
+        }
+        const TABLE: [Align64<SymTable<Sym>>; 48] = {
+            let mut table = [Align64(SymTable([Sym::IDENTITY; _])); _];
+            let mut it = Sym::cartesian_product();
+            while let Some([lhs, rhs]) = it.next() {
+                table[lhs as usize].0.set(rhs, transform_by(lhs, rhs));
+            }
+            table
         };
-        Sym::new(rot, reflected)
+        TABLE[self as usize].0.get(transform)
     }
 
     pub const fn transform_by_inverse(self, transform: Sym) -> Self {
-        let reflected = self.is_reflected() ^ transform.is_reflected();
-        let up = self.face_dest(Face::UP);
-        let fwd = self.face_dest(Face::FORWARD);
-        let trans_up = transform.face_src(up);
-        let trans_fwd = transform.face_src(fwd);
-        let final_up = trans_up.invert_if(reflected);
-        let final_fwd = trans_fwd.invert_if(reflected);
-        let rot: Rot = unsafe {
-            ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
+        const fn transform_by_inverse(target: Sym, transform: Sym) -> Sym {
+            let reflected = target.is_reflected() ^ transform.is_reflected();
+            let up = target.face_dest(Face::UP);
+            let fwd = target.face_dest(Face::FORWARD);
+            let trans_up = transform.face_src(up);
+            let trans_fwd = transform.face_src(fwd);
+            let final_up = trans_up.invert_if(reflected);
+            let final_fwd = trans_fwd.invert_if(reflected);
+            let rot: Rot = unsafe {
+                ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
+            };
+            Sym::new(rot, reflected)
+        }
+        const TABLE: [Align64<SymTable<Sym>>; 48] = {
+            let mut table = [Align64(SymTable([Sym::IDENTITY; _])); _];
+            let mut it = Sym::cartesian_product();
+            while let Some([lhs, rhs]) = it.next() {
+                table[lhs as usize].0.set(rhs, transform_by_inverse(lhs, rhs));
+            }
+            table
         };
-        Sym::new(rot, reflected)
+        TABLE[self as usize].0.get(transform)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn local_transform_by(self, transform: Self) -> Self {
+        transform.transform_by(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn local_transform_by_inverse(self, transform: Self) -> Self {
+        transform.transform_by_inverse(self)
     }
 
     // --- MISCELLANEOUS ---
