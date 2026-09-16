@@ -99,6 +99,10 @@ impl Sym {
     pub const MIN: Self = Self::IDENTITY;
     pub const MAX: Self = Self::new(Rot::MAX, true);
 
+    pub const ROTATE_X: Self = Rot::ROTATE_X.base().sym();
+    pub const ROTATE_Y: Self = Rot::ROTATE_Y.base().sym();
+    pub const ROTATE_Z: Self = Rot::ROTATE_Z.base().sym();
+
     // --- CONSTRUCTORS ---
 
     #[must_use]
