@@ -1,9 +1,15 @@
 
+use ::core::{
+    mem::{
+        MaybeUninit,
+    },
+};
+
 use crate::{
     face::{
         Face,
-        FaceCayley,
-        face_cayley,
+        FaceTable,
+        face_table,
         Face::*,
         AngleDirection,
     },
@@ -12,9 +18,9 @@ use crate::{
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct RotCayley<T: Copy>(pub [T; 24]);
+pub struct RotTable<T: Copy>(pub [T; 24]);
 
-impl<T: Copy> RotCayley<T> {
+impl<T: Copy> RotTable<T> {
     #[must_use]
     #[inline(always)]
     pub const fn new(table: [T; 24]) -> Self {
@@ -33,7 +39,7 @@ impl<T: Copy> RotCayley<T> {
     }
 }
 
-impl<T: Copy> std::ops::Index<Rot> for RotCayley<T> {
+impl<T: Copy> std::ops::Index<Rot> for RotTable<T> {
     type Output = T;
 
     #[inline(always)]
@@ -42,7 +48,7 @@ impl<T: Copy> std::ops::Index<Rot> for RotCayley<T> {
     }
 }
 
-impl<T: Copy> std::ops::IndexMut<Rot> for RotCayley<T> {
+impl<T: Copy> std::ops::IndexMut<Rot> for RotTable<T> {
     #[inline(always)]
     fn index_mut(&mut self, index: Rot) -> &mut Self::Output {
         &mut self.0[index as usize]
@@ -89,8 +95,8 @@ macro_rules! rotate_face_func {
             #[must_use]
             #[inline(always)]
             pub const fn $name(self) -> Face {
-                const TABLE: RotCayley<Face> = {
-                    let mut table = RotCayley([Face::UP; 24]);
+                const TABLE: RotTable<Face> = {
+                    let mut table = RotTable([Face::UP; 24]);
                     let mut rot = Rot::iter();
                     while let Some(rot) = rot.next() {
                         table.set(rot, rot.$function($face));
@@ -115,8 +121,8 @@ macro_rules! rotate_by_func {
             #[inline(always)]
             pub const fn $func_name(self, $rotation: Self) -> Self {
                 // 24 * 24 = 576
-                const TABLE: [Align32<RotCayley<Rot>>; 24] = {
-                    let mut table = [Align32(RotCayley([Rot::IDENTITY; 24])); 24];
+                const TABLE: [Align32<RotTable<Rot>>; 24] = {
+                    let mut table = [Align32(RotTable([Rot::IDENTITY; 24])); 24];
                     let mut it = Rot::cartesian_product();
                     while let Some([lhs, rhs]) = it.next() {
                         let up = lhs.up();
@@ -485,7 +491,7 @@ impl Rot {
     pub const ROTATE_POS_Z_CW: QuarterTurns = Self::ROTATE_Z_CW;
     pub const ROTATE_POS_Z_CCW: QuarterTurns = Self::ROTATE_Z_CCW;
 
-    pub const ROTATE_FACE_TABLE: FaceCayley<QuarterTurns> = face_cayley(
+    pub const ROTATE_FACE_TABLE: FaceTable<QuarterTurns> = face_table(
         Self::ROTATE_NEG_X,
         Self::ROTATE_NEG_Y,
         Self::ROTATE_NEG_Z,
@@ -494,7 +500,7 @@ impl Rot {
         Self::ROTATE_POS_Z,
     );
 
-    pub const ROTATE_FACE_CW_TABLE: FaceCayley<QuarterTurns> = face_cayley(
+    pub const ROTATE_FACE_CW_TABLE: FaceTable<QuarterTurns> = face_table(
         Self::ROTATE_NEG_X_CW,
         Self::ROTATE_NEG_Y_CW,
         Self::ROTATE_NEG_Z_CW,
@@ -503,7 +509,7 @@ impl Rot {
         Self::ROTATE_POS_Z_CW,
     );
 
-    pub const ROTATE_FACE_CCW_TABLE: FaceCayley<QuarterTurns> = face_cayley(
+    pub const ROTATE_FACE_CCW_TABLE: FaceTable<QuarterTurns> = face_table(
         Self::ROTATE_NEG_X_CCW,
         Self::ROTATE_NEG_Y_CCW,
         Self::ROTATE_NEG_Z_CCW,
@@ -613,8 +619,8 @@ impl Rot {
                 Face::DOWN => up.invert(),
             }
         }
-        const TABLE: [Align8<FaceCayley<Face>>; 24] = {
-            let mut table = [Align8(FaceCayley::new([Face::UP; 6])); 24];
+        const TABLE: [Align8<FaceTable<Face>>; 24] = {
+            let mut table = [Align8(FaceTable::new([Face::UP; 6])); 24];
             let mut face_index = 0;
             let mut rot_index = 0;
             loop {
@@ -640,8 +646,8 @@ impl Rot {
     #[must_use]
     #[inline(always)]
     pub const fn face_src(self, face: Face) -> Face {
-        const TABLE: [Align8<FaceCayley<Face>>; 24] = {
-            let mut table = [Align8(FaceCayley::new([Face::UP; 6])); 24];
+        const TABLE: [Align8<FaceTable<Face>>; 24] = {
+            let mut table = [Align8(FaceTable::new([Face::UP; 6])); 24];
             let mut rot = Rot::iter();
             while let Some(rot) = rot.next() {
                 let mut face = Face::iter();
@@ -667,8 +673,8 @@ impl Rot {
     #[must_use]
     #[inline(always)]
     pub const fn from_up_and_forward(up: Face, forward: Face) -> Option<Self> {
-        const TABLE: [Align8<FaceCayley<Option<Rot>>>; 6] = {
-            let mut table = [Align8(FaceCayley::new([None; 6])); 6];
+        const TABLE: [Align8<FaceTable<Option<Rot>>>; 6] = {
+            let mut table = [Align8(FaceTable::new([None; 6])); 6];
             let mut up = 0;
             let mut forward = 0;
             loop {
@@ -760,8 +766,8 @@ impl Rot {
     #[must_use]
     #[inline(always)]
     pub const fn rotate_by_self(self) -> Self {
-        const TABLE: RotCayley<Rot> = {
-            let mut table = RotCayley([Rot::IDENTITY; 24]);
+        const TABLE: RotTable<Rot> = {
+            let mut table = RotTable([Rot::IDENTITY; 24]);
             let mut it = Rot::iter();
             while let Some(rot) = it.next() {
                 table.set(rot, rot.rotate_by(rot));
@@ -983,8 +989,8 @@ impl Rot {
     #[inline(always)]
     pub const fn face_angle(self, face: Face) -> i8 {
         // 24 * 6 = 144
-        const TABLE: [Align8<FaceCayley<i8>>; 24] = {
-            let mut table = [Align8(FaceCayley([0; 6])); 24];
+        const TABLE: [Align8<FaceTable<i8>>; 24] = {
+            let mut table = [Align8(FaceTable([0; 6])); 24];
             let mut rot = Rot::iter();
             while let Some(rot) = rot.next() {
                 let mut face = Face::iter();
@@ -1033,8 +1039,8 @@ impl Rot {
     #[inline(always)]
     pub const fn diff(self, other: Self) -> Self {
         // 24 * 24 = 576
-        const TABLE: [Align32<RotCayley<Rot>>; 24] = {
-            let mut table = [Align32(RotCayley([Rot::IDENTITY; 24])); 24];
+        const TABLE: [Align32<RotTable<Rot>>; 24] = {
+            let mut table = [Align32(RotTable([Rot::IDENTITY; 24])); 24];
             let mut prod = Rot::cartesian_product();
             while let Some([lhs, rhs]) = prod.next() {
                 table[lhs as usize].0.set(rhs, lhs.invert().rotate_by(rhs));
@@ -1048,8 +1054,8 @@ impl Rot {
     #[inline(always)]
     pub const fn conjugate(self, rotation: Self) -> Self {
         // 24 * 24 = 576
-        const TABLE: [Align32<RotCayley<Rot>>; 24] = {
-            let mut table = [Align32(RotCayley([Rot::IDENTITY; 24])); 24];
+        const TABLE: [Align32<RotTable<Rot>>; 24] = {
+            let mut table = [Align32(RotTable([Rot::IDENTITY; 24])); 24];
             let mut it = Rot::cartesian_product();
             while let Some([lhs, rhs]) = it.next() {
                 table[lhs as usize].0.set(rhs, lhs.invert().rotate_by(rhs).rotate_by(lhs));
@@ -1075,8 +1081,8 @@ impl Rot {
             }
             count
         }
-        const TABLE: RotCayley<RotCycleCount> = {
-            let mut table = RotCayley::new([RotCycleCount::C0; _]);
+        const TABLE: RotTable<RotCycleCount> = {
+            let mut table = RotTable::new([RotCycleCount::C0; _]);
             let mut it = Rot::iter();
             let mut bits = 0u8;
             while let Some(rot) = it.next() {
@@ -1096,8 +1102,8 @@ impl Rot {
     #[must_use]
     #[inline(always)]
     pub const fn angles(self) -> RotAngles {
-        const TABLE: RotCayley<RotAngles> = {
-            let mut table = RotCayley::new([RotAngles(RotAnglesInner::Identity); _]);
+        const TABLE: RotTable<RotAngles> = {
+            let mut table = RotTable::new([RotAngles(RotAnglesInner::Identity); _]);
             let mut it = Rot::iter();
             while let Some(rot) = it.next() {
                 let angles = match rot.cycle_count() {
@@ -1322,6 +1328,96 @@ impl<const PRODUCTS: usize> Iterator for CartesianRotIter<PRODUCTS> {
     fn next(&mut self) -> Option<Self::Item> {
         self.next()
     }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub(crate) struct CardinalData<T: Copy> {
+    pub up: T,
+    pub forward: T,
+    pub left: T,
+    pub backward: T,
+    pub right: T,
+    pub down: T,
+}
+
+macro_rules! make_axial {
+    ($(
+        $($comment:literal)?
+        $name:ident : $feature:literal
+    ),*$(,)?) => {
+        #[repr(C)]
+        #[derive(Clone, Copy)]
+        pub(crate) struct AxialData<T: Copy> {
+            $(
+                #[cfg(feature = $feature)]
+                pub $name: T,
+            )*
+        }
+    };
+}
+
+make_axial!(
+    "up"
+    neg_x: "neg_x_up",
+    neg_y: "neg_y_up",
+    neg_z: "neg_z_up",
+    pos_x: "pos_x_up",
+    pos_y: "pos_y_up",
+    pos_z: "pos_z_up",
+    "forward"
+    neg_x: "neg_x_forward",
+    neg_y: "neg_y_forward",
+    neg_z: "neg_z_forward",
+    pos_x: "pos_x_forward",
+    pos_y: "pos_y_forward",
+    pos_z: "pos_z_forward",
+    "left"
+    neg_x: "pos_x_right",
+    neg_y: "pos_y_right",
+    neg_z: "pos_z_right",
+    pos_x: "neg_x_right",
+    pos_y: "neg_y_right",
+    pos_z: "neg_z_right",
+    "backward"
+    neg_x: "pos_x_forward",
+    neg_y: "pos_y_forward",
+    neg_z: "pos_z_forward",
+    pos_x: "neg_x_forward",
+    pos_y: "neg_y_forward",
+    pos_z: "neg_z_forward",
+    "right"
+    neg_x: "neg_x_right",
+    neg_y: "neg_y_right",
+    neg_z: "neg_z_right",
+    pos_x: "pos_x_right",
+    pos_y: "pos_y_right",
+    pos_z: "pos_z_right",
+    "down"
+    neg_x: "pos_x_up",
+    neg_y: "pos_y_up",
+    neg_z: "pos_z_up",
+    pos_x: "neg_x_up",
+    pos_y: "neg_y_up",
+    pos_z: "neg_z_up",
+);
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub(crate) union FaceData<T: Copy> {
+    _align: MaybeUninit<u64>,
+    pub axial: AxialData<T>,
+    pub cardinal: CardinalData<T>,
+    pub cayley: FaceTable<T>,
+}
+
+#[repr(C)]
+pub(crate) struct RotationData {
+    pub identity: Rot,
+    pub min: Rot,
+    pub max: Rot,
+    pub face_rotations: FaceData<Rot>,
+    
 }
 
 #[cfg(test)]

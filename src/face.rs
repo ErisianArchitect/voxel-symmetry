@@ -11,6 +11,7 @@ use crate::{
     axis::Axis,
 };
 
+// IMPORTANT: DO NOT CHANGE THESE VALUES, OR ELSE YOU WILL HAVE TO DIG THROUGH THE ENTIRE CODEBASE TO FIX IT.
 const UP_DISC: u8 = 0;
 const FORWARD_DISC: u8 = 1;
 const LEFT_DISC: u8 = 2;
@@ -103,9 +104,9 @@ use Face::*;
 /// A padded Cayley table for values associated with each [Face].
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct FaceCayley<T: Copy = Face>(pub [T; 6]);
+pub struct FaceTable<T: Copy = Face>(pub [T; 6]);
 
-impl<T: Copy> FaceCayley<T> {
+impl<T: Copy> FaceTable<T> {
     #[must_use]
     #[inline(always)]
     pub const fn new(arr: [T; 6]) -> Self {
@@ -125,7 +126,7 @@ impl<T: Copy> FaceCayley<T> {
     }
 }
 
-impl<T: Copy> std::ops::Index<Face> for FaceCayley<T> {
+impl<T: Copy> std::ops::Index<Face> for FaceTable<T> {
     type Output = T;
     #[inline(always)]
     fn index(&self, index: Face) -> &Self::Output {
@@ -133,14 +134,14 @@ impl<T: Copy> std::ops::Index<Face> for FaceCayley<T> {
     }
 }
 
-impl<T: Copy> std::ops::IndexMut<Face> for FaceCayley<T> {
+impl<T: Copy> std::ops::IndexMut<Face> for FaceTable<T> {
     #[inline(always)]
     fn index_mut(&mut self, index: Face) -> &mut Self::Output {
         &mut self.0[index as usize]
     }
 }
 
-impl FaceCayley<Face> {
+impl FaceTable<Face> {
     /// Return a new table based on this one but with each of the
     /// faces inverted.
     #[must_use]
@@ -196,14 +197,14 @@ pub(crate) const fn face_caley_bits(
 
 /// Create a new face Cayley table.
 /// This function ensures that each value ends up in the right slot.
-pub(crate) const fn face_cayley<T: Copy>(
+pub(crate) const fn face_table<T: Copy>(
     neg_x: T,
     neg_y: T,
     neg_z: T,
     pos_x: T,
     pos_y: T,
     pos_z: T,
-) -> FaceCayley<T> {
+) -> FaceTable<T> {
     // This is a somewhat convoluted way to ensure that changing
     // the discriminant ordering of Face does not break the
     // Cayley tables.
@@ -221,7 +222,7 @@ pub(crate) const fn face_cayley<T: Copy>(
         uninit: [MaybeUninit<T>; 6],
         init: [T; 6],
     }
-    FaceCayley(unsafe { TableConvert { uninit: table }.init })
+    FaceTable(unsafe { TableConvert { uninit: table }.init })
 }
 
 /// The angle direction indicates which direction angles increase in.
@@ -236,11 +237,11 @@ pub enum AngleDirection {
 
 /// Create a Cayley table for face at angle tables, configured for the AngleDirection.
 const fn face_at_angle(
-    up: FaceCayley<Face>,
-    left: FaceCayley<Face>,
-    down: FaceCayley<Face>,
-    right: FaceCayley<Face>,
-) -> [FaceCayley<Face>; 4] {
+    up: FaceTable<Face>,
+    left: FaceTable<Face>,
+    down: FaceTable<Face>,
+    right: FaceTable<Face>,
+) -> [FaceTable<Face>; 4] {
     match Face::ANGLE_DIRECTION {
         AngleDirection::CCW => [up, left, down, right],
         AngleDirection::CW => [up, right, down, left],
@@ -340,7 +341,7 @@ impl Face {
     // that orientation. You do should not change these tables.
 
     /// Determines which direction points upward relative to each face.
-    pub(crate) const UP_CAYLEY:    FaceCayley<Face> = face_cayley(
+    pub(crate) const UP_CAYLEY:    FaceTable<Face> = face_table(
         calc_face_up(NegX),
         calc_face_up(NegY),
         calc_face_up(NegZ),
@@ -349,7 +350,7 @@ impl Face {
         calc_face_up(PosZ),
     );
     /// Determines which direction points leftward relative to each face.
-    pub(crate) const LEFT_CAYLEY:  FaceCayley<Face> = face_cayley(
+    pub(crate) const LEFT_CAYLEY:  FaceTable<Face> = face_table(
         calc_face_left(NegX),
         calc_face_left(NegY),
         calc_face_left(NegZ),
@@ -358,12 +359,12 @@ impl Face {
         calc_face_left(PosZ),
     );
     /// Determines which direction points downward relative to each face.
-    pub(crate) const DOWN_CAYLEY:  FaceCayley<Face> = Self::UP_CAYLEY.invert();
+    pub(crate) const DOWN_CAYLEY:  FaceTable<Face> = Self::UP_CAYLEY.invert();
     /// Determines which direction points rightward relative to each face.
-    pub(crate) const RIGHT_CAYLEY: FaceCayley<Face> = Self::LEFT_CAYLEY.invert();
+    pub(crate) const RIGHT_CAYLEY: FaceTable<Face> = Self::LEFT_CAYLEY.invert();
 
     /// Determines which direction points upward for each face at each angle.
-    pub(crate) const UP_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
+    pub(crate) const UP_AT_ANGLE_CAYLEY: [FaceTable<Face>; 4] = face_at_angle(
         Self::UP_CAYLEY,
         Self::LEFT_CAYLEY,
         Self::DOWN_CAYLEY,
@@ -371,7 +372,7 @@ impl Face {
     );
 
     /// Determines which direction points leftward for each face at each angle.
-    pub(crate) const LEFT_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
+    pub(crate) const LEFT_AT_ANGLE_CAYLEY: [FaceTable<Face>; 4] = face_at_angle(
         Self::LEFT_CAYLEY,
         Self::DOWN_CAYLEY,
         Self::RIGHT_CAYLEY,
@@ -379,7 +380,7 @@ impl Face {
     );
 
     /// Determines which direction points downward for each face at each angle.
-    pub(crate) const DOWN_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
+    pub(crate) const DOWN_AT_ANGLE_CAYLEY: [FaceTable<Face>; 4] = face_at_angle(
         Self::DOWN_CAYLEY,
         Self::RIGHT_CAYLEY,
         Self::UP_CAYLEY,
@@ -387,7 +388,7 @@ impl Face {
     );
 
     /// Determines which direction points rightward for each face at each angle.
-    pub(crate) const RIGHT_AT_ANGLE_CAYLEY: [FaceCayley<Face>; 4] = face_at_angle(
+    pub(crate) const RIGHT_AT_ANGLE_CAYLEY: [FaceTable<Face>; 4] = face_at_angle(
         Self::RIGHT_CAYLEY,
         Self::UP_CAYLEY,
         Self::LEFT_CAYLEY,
@@ -396,18 +397,18 @@ impl Face {
 
     //                                                      Order: NegX, NegY, NegZ, PosX, PosY, PosZ
     /// The inversion of each face.
-    pub(crate) const INVERT_CAYLEY: FaceCayley<Face> = face_cayley(PosX, PosY, PosZ, NegX, NegY, NegZ);
+    pub(crate) const INVERT_CAYLEY: FaceTable<Face> = face_table(PosX, PosY, PosZ, NegX, NegY, NegZ);
 
     //                                                         Order: NegX, NegY, NegZ, PosX, PosY, PosZ
-    pub(crate) const INVERT_X_CAYLEY: FaceCayley<Face> = face_cayley(PosX, NegY, NegZ, NegX, PosY, PosZ);
-    pub(crate) const INVERT_Y_CAYLEY: FaceCayley<Face> = face_cayley(NegX, PosY, NegZ, PosX, NegY, PosZ);
-    pub(crate) const INVERT_Z_CAYLEY: FaceCayley<Face> = face_cayley(NegX, NegY, PosZ, PosX, PosY, NegZ);
+    pub(crate) const INVERT_X_CAYLEY: FaceTable<Face> = face_table(PosX, NegY, NegZ, NegX, PosY, PosZ);
+    pub(crate) const INVERT_Y_CAYLEY: FaceTable<Face> = face_table(NegX, PosY, NegZ, PosX, NegY, PosZ);
+    pub(crate) const INVERT_Z_CAYLEY: FaceTable<Face> = face_table(NegX, NegY, PosZ, PosX, PosY, NegZ);
 
-    pub(crate) const INVERT_XY_CAYLEY: FaceCayley<Face> = face_cayley(PosX, PosY, NegZ, NegX, NegY, PosZ);
-    pub(crate) const INVERT_XZ_CAYLEY: FaceCayley<Face> = face_cayley(PosX, NegY, PosZ, NegX, PosY, NegZ);
-    pub(crate) const INVERT_YZ_CAYLEY: FaceCayley<Face> = face_cayley(NegX, PosY, PosZ, PosX, NegY, NegZ);
+    pub(crate) const INVERT_XY_CAYLEY: FaceTable<Face> = face_table(PosX, PosY, NegZ, NegX, NegY, PosZ);
+    pub(crate) const INVERT_XZ_CAYLEY: FaceTable<Face> = face_table(PosX, NegY, PosZ, NegX, PosY, NegZ);
+    pub(crate) const INVERT_YZ_CAYLEY: FaceTable<Face> = face_table(NegX, PosY, PosZ, PosX, NegY, NegZ);
 
-    pub(crate) const INVERT_VERTICAL_CAYLEY: FaceCayley<Face> = {
+    pub(crate) const INVERT_VERTICAL_CAYLEY: FaceTable<Face> = {
         const fn calc(face: Face) -> Face {
             match face {
                 Face::UP => Face::DOWN,
@@ -415,13 +416,13 @@ impl Face {
                 other => other,
             }
         }
-        face_cayley(
+        face_table(
             calc(NegX), calc(NegY), calc(NegZ),
             calc(PosX), calc(PosY), calc(PosZ),
         )
     };
 
-    pub(crate) const INVERT_LEFT_RIGHT_CAYLEY: FaceCayley<Face> = {
+    pub(crate) const INVERT_LEFT_RIGHT_CAYLEY: FaceTable<Face> = {
         const fn calc(face: Face) -> Face {
             match face {
                 Face::LEFT => Face::RIGHT,
@@ -429,13 +430,13 @@ impl Face {
                 other => other,
             }
         }
-        face_cayley(
+        face_table(
             calc(NegX), calc(NegY), calc(NegZ),
             calc(PosX), calc(PosY), calc(PosZ),
         )
     };
 
-    pub(crate) const INVERT_FRONT_BACK_CAYLEY: FaceCayley<Face> = {
+    pub(crate) const INVERT_FRONT_BACK_CAYLEY: FaceTable<Face> = {
         const fn calc(face: Face) -> Face {
             match face {
                 Face::FORWARD => Face::BACKWARD,
@@ -443,7 +444,7 @@ impl Face {
                 other => other,
             }
         }
-        face_cayley(
+        face_table(
             calc(NegX), calc(NegY), calc(NegZ),
             calc(PosX), calc(PosY), calc(PosZ),
         )
@@ -477,7 +478,7 @@ impl Face {
     #[must_use]
     #[inline(always)]
     pub const fn axis(self) -> Axis {
-        const TABLE: FaceCayley<Axis> = face_cayley(Axis::X, Axis::Y, Axis::Z, Axis::X, Axis::Y, Axis::Z);
+        const TABLE: FaceTable<Axis> = face_table(Axis::X, Axis::Y, Axis::Z, Axis::X, Axis::Y, Axis::Z);
         TABLE.get(self)
     }
 
@@ -502,14 +503,14 @@ impl Face {
     #[must_use]
     #[inline(always)]
     pub const fn as_negative(self) -> Self {
-        const TABLE: FaceCayley = face_cayley(NegX, NegY, NegZ, NegX, NegY, NegZ);
+        const TABLE: FaceTable = face_table(NegX, NegY, NegZ, NegX, NegY, NegZ);
         TABLE.get(self)
     }
 
     #[must_use]
     #[inline(always)]
     pub const fn as_positive(self) -> Self {
-        const TABLE: FaceCayley = face_cayley(PosX, PosY, PosZ, PosX, PosY, PosZ);
+        const TABLE: FaceTable = face_table(PosX, PosY, PosZ, PosX, PosY, PosZ);
         TABLE.get(self)
     }
 

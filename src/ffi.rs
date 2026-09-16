@@ -5,8 +5,8 @@ use crate::{
     Rot,
     RotIter,
     CartesianRotIter,
-    FaceCayley,
-    face_cayley,
+    FaceTable,
+    face_table,
 };
 
 macro_rules! lambda {
@@ -128,8 +128,8 @@ lambda!{
         pos_x: Face,
         pos_y: Face,
         pos_z: Face,
-    ) -> FaceCayley<Face>
-        => face_cayley(neg_x, neg_y, neg_z, pos_x, pos_y, pos_z),
+    ) -> FaceTable<Face>
+        => face_table(neg_x, neg_y, neg_z, pos_x, pos_y, pos_z),
     /// Create a Cayley (lookup) table for [Rot] values that can be indexed with [Face].
     fn sym_rot_face_cayley(
         neg_x: Rot,
@@ -138,13 +138,13 @@ lambda!{
         pos_x: Rot,
         pos_y: Rot,
         pos_z: Rot,
-    ) -> FaceCayley<Rot>
-        => face_cayley(neg_x, neg_y, neg_z, pos_x, pos_y, pos_z),
+    ) -> FaceTable<Rot>
+        => face_table(neg_x, neg_y, neg_z, pos_x, pos_y, pos_z),
     /// Get a [Face] from a [FaceCayley] (lookup) table.
-    fn sym_face_cayley_get(cayley: FaceCayley<Face>, face: Face) -> Face
+    fn sym_face_cayley_get(cayley: FaceTable<Face>, face: Face) -> Face
         => cayley.get(face),
     /// Get a [Rot] from a [FaceCayley] (lookup) table.
-    fn sym_rot_face_cayley_get(cayley: FaceCayley<Face>, face: Face) -> Face
+    fn sym_rot_face_cayley_get(cayley: FaceTable<Face>, face: Face) -> Face
         => cayley.get(face),
     /// Returns [Face::NegX].
     fn sym_face_neg_x() -> Face
