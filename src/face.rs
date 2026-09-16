@@ -7,6 +7,10 @@
 // These values ensure that orientations look the same regardless of coordinate system.
 // The order ensures that rotations increase in a certain logical order.
 
+use crate::{
+    axis::Axis,
+};
+
 const UP_DISC: u8 = 0;
 const FORWARD_DISC: u8 = 1;
 const LEFT_DISC: u8 = 2;
@@ -97,16 +101,42 @@ impl Default for Face {
 use Face::*;
 
 /// A padded Cayley table for values associated with each [Face].
-#[repr(C, align(8))]
+#[repr(C)]
 #[derive(Clone, Copy)]
-pub struct FaceCayley<T: Copy>([T; 6]);
+pub struct FaceCayley<T: Copy = Face>(pub [T; 6]);
 
 impl<T: Copy> FaceCayley<T> {
+    #[must_use]
+    #[inline(always)]
+    pub const fn new(arr: [T; 6]) -> Self {
+        Self(arr)
+    }
+    
     /// Get the value stored for the given [Face].
     #[must_use]
     #[inline(always)]
-    pub const fn get(self, face: Face) -> T {
+    pub const fn get(&self, face: Face) -> T {
         self.0[face as usize]
+    }
+
+    #[inline(always)]
+    pub const fn set(&mut self, face: Face, value: T) {
+        self.0[face as usize] = value;
+    }
+}
+
+impl<T: Copy> std::ops::Index<Face> for FaceCayley<T> {
+    type Output = T;
+    #[inline(always)]
+    fn index(&self, index: Face) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+
+impl<T: Copy> std::ops::IndexMut<Face> for FaceCayley<T> {
+    #[inline(always)]
+    fn index_mut(&mut self, index: Face) -> &mut Self::Output {
+        &mut self.0[index as usize]
     }
 }
 
@@ -125,6 +155,43 @@ impl FaceCayley<Face> {
             self.0[5].invert(),
         ])
     }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FaceCayleyBits(u8);
+
+impl FaceCayleyBits {
+    #[must_use]
+    #[inline(always)]
+    pub const fn get(self, face: Face) -> bool {
+        self.0 & (1 << face as u8) != 0
+    }
+}
+
+pub(crate) const fn face_caley_bits(
+    neg_x: bool,
+    neg_y: bool,
+    neg_z: bool,
+    pos_x: bool,
+    pos_y: bool,
+    pos_z: bool,
+) -> FaceCayleyBits {
+    const fn set_bit_if(bits: u8, bit: u8, condition: bool) -> u8 {
+        if condition {
+            bits | bit
+        } else {
+            bits
+        }
+    }
+    let mut bits = 0u8;
+    bits = set_bit_if(bits, 1 << Face::NegX as u8, neg_x);
+    bits = set_bit_if(bits, 1 << Face::NegY as u8, neg_y);
+    bits = set_bit_if(bits, 1 << Face::NegZ as u8, neg_z);
+    bits = set_bit_if(bits, 1 << Face::PosX as u8, pos_x);
+    bits = set_bit_if(bits, 1 << Face::PosY as u8, pos_y);
+    bits = set_bit_if(bits, 1 << Face::PosZ as u8, pos_z);
+    FaceCayleyBits(bits)
 }
 
 /// Create a new face Cayley table.
@@ -405,6 +472,55 @@ impl Face {
     #[inline(always)]
     pub const fn as_u8(self) -> u8 {
         self as u8
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn axis(self) -> Axis {
+        const TABLE: FaceCayley<Axis> = face_cayley(Axis::X, Axis::Y, Axis::Z, Axis::X, Axis::Y, Axis::Z);
+        TABLE.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn is_negative(self) -> bool {
+        const TABLE: FaceCayleyBits = face_caley_bits(
+            true, true, true, false, false, false,
+        );
+        TABLE.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn is_positive(self) -> bool {
+        const TABLE: FaceCayleyBits = face_caley_bits(
+            false, false, false, true, true, true,
+        );
+        TABLE.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn as_negative(self) -> Self {
+        const TABLE: FaceCayley = face_cayley(NegX, NegY, NegZ, NegX, NegY, NegZ);
+        TABLE.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn as_positive(self) -> Self {
+        const TABLE: FaceCayley = face_cayley(PosX, PosY, PosZ, PosX, PosY, PosZ);
+        TABLE.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn with_sign(self, sign: i32) -> Self {
+        match sign {
+            0 => self,
+            1.. => self.as_positive(),
+            ..0 => self.as_negative(),
+        }
     }
 
     // --- QUERY FUNCTIONS ---
