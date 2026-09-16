@@ -4,9 +4,12 @@ pub mod axis;
 pub mod face;
 pub mod ffi;
 pub mod rotation;
+pub mod symmetry;
 
+pub use axis::*;
 pub use face::*;
 pub use rotation::*;
+pub use symmetry::*;
 
 pub use Face::*;
 

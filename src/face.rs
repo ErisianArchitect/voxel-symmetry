@@ -9,6 +9,7 @@
 
 use crate::{
     axis::Axis,
+    align::*,
 };
 
 // IMPORTANT: DO NOT CHANGE THESE VALUES, OR ELSE YOU WILL HAVE TO DIG THROUGH THE ENTIRE CODEBASE TO FIX IT.
@@ -160,9 +161,9 @@ impl FaceTable<Face> {
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FaceCayleyBits(u8);
+pub struct FaceTableBits(u8);
 
-impl FaceCayleyBits {
+impl FaceTableBits {
     #[must_use]
     #[inline(always)]
     pub const fn get(self, face: Face) -> bool {
@@ -170,14 +171,14 @@ impl FaceCayleyBits {
     }
 }
 
-pub(crate) const fn face_caley_bits(
+pub(crate) const fn face_table_bits(
     neg_x: bool,
     neg_y: bool,
     neg_z: bool,
     pos_x: bool,
     pos_y: bool,
     pos_z: bool,
-) -> FaceCayleyBits {
+) -> FaceTableBits {
     const fn set_bit_if(bits: u8, bit: u8, condition: bool) -> u8 {
         if condition {
             bits | bit
@@ -192,7 +193,7 @@ pub(crate) const fn face_caley_bits(
     bits = set_bit_if(bits, 1 << Face::PosX as u8, pos_x);
     bits = set_bit_if(bits, 1 << Face::PosY as u8, pos_y);
     bits = set_bit_if(bits, 1 << Face::PosZ as u8, pos_z);
-    FaceCayleyBits(bits)
+    FaceTableBits(bits)
 }
 
 /// Create a new face Cayley table.
@@ -397,7 +398,7 @@ impl Face {
 
     //                                                      Order: NegX, NegY, NegZ, PosX, PosY, PosZ
     /// The inversion of each face.
-    pub(crate) const INVERT_CAYLEY: FaceTable<Face> = face_table(PosX, PosY, PosZ, NegX, NegY, NegZ);
+    pub(crate) const INVERT_TABLE: FaceTable<Face> = face_table(PosX, PosY, PosZ, NegX, NegY, NegZ);
 
     //                                                         Order: NegX, NegY, NegZ, PosX, PosY, PosZ
     pub(crate) const INVERT_X_CAYLEY: FaceTable<Face> = face_table(PosX, NegY, NegZ, NegX, PosY, PosZ);
@@ -485,7 +486,7 @@ impl Face {
     #[must_use]
     #[inline(always)]
     pub const fn is_negative(self) -> bool {
-        const TABLE: FaceCayleyBits = face_caley_bits(
+        const TABLE: FaceTableBits = face_table_bits(
             true, true, true, false, false, false,
         );
         TABLE.get(self)
@@ -494,7 +495,7 @@ impl Face {
     #[must_use]
     #[inline(always)]
     pub const fn is_positive(self) -> bool {
-        const TABLE: FaceCayleyBits = face_caley_bits(
+        const TABLE: FaceTableBits = face_table_bits(
             false, false, false, true, true, true,
         );
         TABLE.get(self)
@@ -578,7 +579,17 @@ impl Face {
     #[must_use]
     #[inline(always)]
     pub const fn invert(self) -> Self {
-        Self::INVERT_CAYLEY.get(self)
+        Self::INVERT_TABLE.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_if(self, condition: bool) -> Self {
+        const TABLE: [Align8<FaceTable<Face>>; 2] = [
+            Align8(face_table(NegX, NegY, NegZ, PosX, PosY, PosZ)),
+            Align8(Face::INVERT_TABLE),
+        ];
+        TABLE[condition as usize].0.get(self)
     }
 
     /// Invert the `X` axis.
@@ -749,6 +760,12 @@ impl Face {
             PosY => [ 0 as _,  1 as _,  0 as _],
             PosZ => [ 0 as _,  0 as _,  1 as _],
         }
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn is_orthogonal_to(self, other: Face) -> bool {
+        self.axis().is_orthogonal_to(other.axis())
     }
 
 }

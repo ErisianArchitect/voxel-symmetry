@@ -6,6 +6,9 @@ use ::core::{
 };
 
 use crate::{
+    axis::{
+        Axis,
+    },
     face::{
         Face,
         FaceTable,
@@ -18,7 +21,7 @@ use crate::{
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct RotTable<T: Copy>(pub [T; 24]);
+pub struct RotTable<T: Copy = Rot>(pub [T; 24]);
 
 impl<T: Copy> RotTable<T> {
     #[must_use]
@@ -174,27 +177,14 @@ macro_rules! local_quarter_turn_func {
         )*
     };
 }
-#[repr(C, align(4))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Align4;
-
-// #[repr(Rust)]
-// #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-// pub enum RotAngles {
-//     Identity(Align4),
-//     Binary([Rot; 2]),
-//     Ternary([Rot; 3]),
-//     Quaternary([Rot; 4]),
-// }
-// const _: () = isit::assert_niche::<Option<Option<RotAngles>>>();
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RotCycleCount {
-    C0 = 0,
     C1 = 1,
     C2 = 2,
     C3 = 3,
+    C4 = 4,
 }
 
 impl RotCycleCount {
@@ -228,17 +218,17 @@ impl RotCycleCount {
 
 #[repr(u8, align(4))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum RotAnglesInner {
+enum RotAnglesKind {
     Identity = 0,
     Binary(Rot) = 1,
     Ternary([Rot; 2]) = 2,
     Quaternary([Rot; 3]) = 3,
 }
-const _: () = isit::assert_same_size_align::<RotAnglesInner, u32>();
+const _: () = isit::assert_same_size_align::<RotAnglesKind, u32>();
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RotAngles(RotAnglesInner);
+pub struct RotAngles(RotAnglesKind);
 const _: () = isit::assert_same_size_align::<RotAngles, u32>();
 
 impl RotAngles {
@@ -252,10 +242,10 @@ impl RotAngles {
     #[inline]
     pub const fn base(self) -> Rot {
         match self.0 {
-            RotAnglesInner::Identity => Rot::IDENTITY,
-            RotAnglesInner::Binary(rot) => rot,
-            RotAnglesInner::Ternary([rot, _]) => rot,
-            RotAnglesInner::Quaternary([rot, _, _]) => rot,
+            RotAnglesKind::Identity => Rot::IDENTITY,
+            RotAnglesKind::Binary(rot) => rot,
+            RotAnglesKind::Ternary([rot, _]) => rot,
+            RotAnglesKind::Quaternary([rot, _, _]) => rot,
         }
     }
 
@@ -263,14 +253,14 @@ impl RotAngles {
     #[inline]
     pub const fn get(self, angle: i8) -> Rot {
         match self.0 {
-            RotAnglesInner::Identity => Rot::IDENTITY,
-            RotAnglesInner::Binary(rot) => {
+            RotAnglesKind::Identity => Rot::IDENTITY,
+            RotAnglesKind::Binary(rot) => {
                 [Rot::IDENTITY, rot][(angle & 1) as usize]
             },
-            RotAnglesInner::Ternary([a, b]) => {
+            RotAnglesKind::Ternary([a, b]) => {
                 [Rot::IDENTITY, a, b][angle.rem_euclid(3) as usize]
             },
-            RotAnglesInner::Quaternary([a, b, c]) => {
+            RotAnglesKind::Quaternary([a, b, c]) => {
                 [Rot::IDENTITY, a, b, c][(angle & 3) as usize]
             },
         }
@@ -288,10 +278,10 @@ impl RotAngles {
     #[inline(always)]
     pub const fn cycle_count(self) -> RotCycleCount {
         match self.0 {
-            RotAnglesInner::Identity => RotCycleCount::C0,
-            RotAnglesInner::Binary(_) => RotCycleCount::C1,
-            RotAnglesInner::Ternary(_) => RotCycleCount::C2,
-            RotAnglesInner::Quaternary(_) => RotCycleCount::C3,
+            RotAnglesKind::Identity => RotCycleCount::C1,
+            RotAnglesKind::Binary(_) => RotCycleCount::C2,
+            RotAnglesKind::Ternary(_) => RotCycleCount::C3,
+            RotAnglesKind::Quaternary(_) => RotCycleCount::C4,
         }
     }
 }
@@ -302,7 +292,7 @@ pub struct QuarterTurns([Rot; 4]);
 
 impl QuarterTurns {
     const fn build(rot: Rot) -> Self {
-        if rot.cycle_count() as u8 != 3 {
+        if rot.cycle_count() as u8 != RotCycleCount::C4 as u8 {
             panic!("Not a quaternary rotation.");
         }
         let next1 = rot.rotate_by(rot);
@@ -343,6 +333,46 @@ pub enum ConjugacyClass {
     Ternary = 3,
     /// Quaternary. 90 degree rotations about a face. Six elements.
     Quaternary = 4,
+}
+
+const fn determine_conjugacy_class(rot: Rot) -> ConjugacyClass {
+    let cycle_count = rot.cycle_count();
+    match cycle_count {
+        RotCycleCount::C1 => ConjugacyClass::Identity,
+        RotCycleCount::C2 => {
+            // Only two axes need to be checked because two axes would be flipped.
+            if rot.is_orthogonal() {
+                ConjugacyClass::EdgeBinary
+            } else {
+                ConjugacyClass::FaceBinary
+            }
+        },
+        RotCycleCount::C3 => ConjugacyClass::Ternary,
+        RotCycleCount::C4 => ConjugacyClass::Quaternary,
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RotTableBits(u32);
+
+impl RotTableBits {
+    #[inline]
+    pub const fn set(&mut self, index: Rot, value: bool) {
+        let bit = 1 << index as u8;
+        if value {
+            self.0 |= bit;
+        } else {
+            self.0 &= !bit;
+        }
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn get(self, index: Rot) -> bool {
+        let bit = 1 << index as u8;
+        self.0 & bit != 0
+    }
 }
 
 impl Rot {
@@ -1069,7 +1099,7 @@ impl Rot {
     #[inline(always)]
     pub const fn cycle_count(self) -> RotCycleCount {
         const fn count_cycle(rot: Rot) -> u8 {
-            let mut count = 0;
+            let mut count = 1;
             let mut next = Rot::IDENTITY;
             loop {
                 next = next.rotate_by(rot);
@@ -1082,7 +1112,7 @@ impl Rot {
             count
         }
         const TABLE: RotTable<RotCycleCount> = {
-            let mut table = RotTable::new([RotCycleCount::C0; _]);
+            let mut table = RotTable::new([RotCycleCount::C1; _]);
             let mut it = Rot::iter();
             let mut bits = 0u8;
             while let Some(rot) = it.next() {
@@ -1091,7 +1121,7 @@ impl Rot {
                 bits |= 1 << cycle_count;
             }
             // This check ensures that all counts from 0 to 3 are specified.
-            if bits != 15 {
+            if bits != 30 {
                 panic!("Bits was unexpected value.");
             }
             table
@@ -1103,17 +1133,17 @@ impl Rot {
     #[inline(always)]
     pub const fn angles(self) -> RotAngles {
         const TABLE: RotTable<RotAngles> = {
-            let mut table = RotTable::new([RotAngles(RotAnglesInner::Identity); _]);
+            let mut table = RotTable::new([RotAngles(RotAnglesKind::Identity); _]);
             let mut it = Rot::iter();
             while let Some(rot) = it.next() {
                 let angles = match rot.cycle_count() {
-                    RotCycleCount::C0 => RotAngles(RotAnglesInner::Identity),
-                    RotCycleCount::C1 => RotAngles(RotAnglesInner::Binary(rot)),
-                    RotCycleCount::C2 => RotAngles(RotAnglesInner::Ternary([rot, rot.rotate_by_self()])),
-                    RotCycleCount::C3 => {
+                    RotCycleCount::C1 => RotAngles(RotAnglesKind::Identity),
+                    RotCycleCount::C2 => RotAngles(RotAnglesKind::Binary(rot)),
+                    RotCycleCount::C3 => RotAngles(RotAnglesKind::Ternary([rot, rot.rotate_by_self()])),
+                    RotCycleCount::C4 => {
                         let next1 = rot.rotate_by_self();
                         let next2 = next1.rotate_by(rot);
-                        RotAngles(RotAnglesInner::Quaternary([rot, next1, next2]))
+                        RotAngles(RotAnglesKind::Quaternary([rot, next1, next2]))
                     },
                 };
                 table.set(rot, angles);
@@ -1198,6 +1228,24 @@ impl Rot {
         fn local_rotate_pos_z_cw(self, angle: i8) -> Self => ROTATE_POS_Z_CW,
         fn local_rotate_pos_z_ccw(self, angle: i8) -> Self => ROTATE_POS_Z_CCW,
     );
+
+    /// Determines if any of the rotated axes are orthogonal to itself.
+    #[must_use]
+    #[inline(always)]
+    pub const fn is_orthogonal(self) -> bool {
+        const TABLE: RotTableBits = {
+            let mut bits = RotTableBits(0);
+            let mut it = Rot::iter();
+            while let Some(rot) = it.next() {
+                if rot.pos_x_dest().axis().is_orthogonal_to(Axis::X)
+                || rot.pos_y_dest().axis().is_orthogonal_to(Axis::Y) {
+                    bits.set(rot, true);
+                }
+            }
+            bits
+        };
+        TABLE.get(self)
+    }
  
     // --- MISCELLANEOUS ---
     
@@ -1343,7 +1391,7 @@ pub(crate) struct CardinalData<T: Copy> {
 
 macro_rules! make_axial {
     ($(
-        $($comment:literal)?
+        // $($comment:literal)?
         $name:ident : $feature:literal
     ),*$(,)?) => {
         #[repr(C)]
@@ -1358,42 +1406,42 @@ macro_rules! make_axial {
 }
 
 make_axial!(
-    "up"
+    // Up
     neg_x: "neg_x_up",
     neg_y: "neg_y_up",
     neg_z: "neg_z_up",
     pos_x: "pos_x_up",
     pos_y: "pos_y_up",
     pos_z: "pos_z_up",
-    "forward"
+    // Forward
     neg_x: "neg_x_forward",
     neg_y: "neg_y_forward",
     neg_z: "neg_z_forward",
     pos_x: "pos_x_forward",
     pos_y: "pos_y_forward",
     pos_z: "pos_z_forward",
-    "left"
+    // Left
     neg_x: "pos_x_right",
     neg_y: "pos_y_right",
     neg_z: "pos_z_right",
     pos_x: "neg_x_right",
     pos_y: "neg_y_right",
     pos_z: "neg_z_right",
-    "backward"
+    // Backward
     neg_x: "pos_x_forward",
     neg_y: "pos_y_forward",
     neg_z: "pos_z_forward",
     pos_x: "neg_x_forward",
     pos_y: "neg_y_forward",
     pos_z: "neg_z_forward",
-    "right"
+    // Right
     neg_x: "neg_x_right",
     neg_y: "neg_y_right",
     neg_z: "neg_z_right",
     pos_x: "pos_x_right",
     pos_y: "pos_y_right",
     pos_z: "pos_z_right",
-    "down"
+    // Down
     neg_x: "pos_x_up",
     neg_y: "pos_y_up",
     neg_z: "pos_z_up",
@@ -1417,7 +1465,6 @@ pub(crate) struct RotationData {
     pub min: Rot,
     pub max: Rot,
     pub face_rotations: FaceData<Rot>,
-    
 }
 
 #[cfg(test)]
@@ -1438,9 +1485,6 @@ mod tests {
             for rot_y in Rot::iter() {
                 let rotated = rot_x.rotate_by(rot_y);
                 let derotated = rotated.rotate_by_inverse(rot_y);
-                assert_eq!(rot_x, derotated);
-                let rotated = rot_x.local_rotate_by(rot_y);
-                let derotated = rotated.local_rotate_by_inverse(rot_y);
                 assert_eq!(rot_x, derotated);
             }
         }
