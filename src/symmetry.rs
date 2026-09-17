@@ -67,7 +67,9 @@ macro_rules! make_sym {
 }
 
 make_sym!{
-    // [FACE ANGLE REFLECTION] (N for reflection means Non-reflected, R means Reflected.)
+    // REVIEW: Should the reflected variants also have their discriminants reflected?
+    // [FACE ANGLE REFLECTION]
+    // (`N` for reflection means Non-reflected, `R` means Reflected)
     pub enum Sym {
         // Non-reflected
         //     Negative
