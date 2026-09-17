@@ -12,7 +12,7 @@ use crate::{
     face::{
         Face,
         FaceTable,
-        face_table,
+        axial_face_table,
         Face::*,
         AngleDirection,
     },
@@ -524,7 +524,7 @@ impl Rot {
     pub const ROTATE_POS_Z_CW: QuarterTurns = Self::ROTATE_Z_CW;
     pub const ROTATE_POS_Z_CCW: QuarterTurns = Self::ROTATE_Z_CCW;
 
-    pub const ROTATE_FACE_TABLE: FaceTable<QuarterTurns> = face_table(
+    pub const ROTATE_FACE_TABLE: FaceTable<QuarterTurns> = axial_face_table(
         Self::ROTATE_NEG_X,
         Self::ROTATE_NEG_Y,
         Self::ROTATE_NEG_Z,
@@ -533,7 +533,7 @@ impl Rot {
         Self::ROTATE_POS_Z,
     );
 
-    pub const ROTATE_FACE_CW_TABLE: FaceTable<QuarterTurns> = face_table(
+    pub const ROTATE_FACE_CW_TABLE: FaceTable<QuarterTurns> = axial_face_table(
         Self::ROTATE_NEG_X_CW,
         Self::ROTATE_NEG_Y_CW,
         Self::ROTATE_NEG_Z_CW,
@@ -542,7 +542,7 @@ impl Rot {
         Self::ROTATE_POS_Z_CW,
     );
 
-    pub const ROTATE_FACE_CCW_TABLE: FaceTable<QuarterTurns> = face_table(
+    pub const ROTATE_FACE_CCW_TABLE: FaceTable<QuarterTurns> = axial_face_table(
         Self::ROTATE_NEG_X_CCW,
         Self::ROTATE_NEG_Y_CCW,
         Self::ROTATE_NEG_Z_CCW,
