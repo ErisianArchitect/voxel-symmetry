@@ -12,7 +12,12 @@ use crate::{
     align::*,
 };
 
-// IMPORTANT: DO NOT CHANGE THESE VALUES, OR ELSE YOU WILL HAVE TO DIG THROUGH THE ENTIRE CODEBASE TO FIX IT.
+// IMPORTANT: DO NOT CHANGE THESE VALUES, OR ELSE YOU WILL HAVE TO DIG THROUGH THE ENTIRE CODEBASE TO FIX IT
+
+// These are the discriminats for each cardinal direction.
+// By keeping these discriminants the same value for each coordinate
+// system, it means that each bit representation has the same relative
+// geometric transformation for each coordinate system.
 const UP_DISC: u8 = 0;
 const FORWARD_DISC: u8 = 1;
 const LEFT_DISC: u8 = 2;
@@ -20,6 +25,8 @@ const BACKWARD_DISC: u8 = 3;
 const RIGHT_DISC: u8 = 4;
 const DOWN_DISC: u8 = 5;
 
+// Here we select the discriminants for the axial directions
+// based on the coordinate system feature-flags.
 const NEG_X_DISC: u8 = cfg_select!(
     feature = "neg_x_up" => UP_DISC,
     feature = "pos_x_up" => DOWN_DISC,
@@ -74,14 +81,31 @@ const POS_Z_DISC: u8 = cfg_select!(
     feature = "neg_z_forward" => BACKWARD_DISC,
 );
 
+/// Represents a face of a cube.
+///
+/// # Note
+/// The discriminants for this enum's variants are not the same
+/// across all coordinate systems. They are dependent on the
+/// coordinate system, so you should not rely on the bit
+/// representation of, for example, [Face::NegX], to remain
+/// the same regardless of coordinate system.
+///
+/// The discriminant order is based on the cardinal directions
+/// of the coordinate system.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Face {
+    /// The `-X` face.
     NegX = NEG_X_DISC,
+    /// The `-Y` face.
     NegY = NEG_Y_DISC,
+    /// The `-Z` face.
     NegZ = NEG_Z_DISC,
+    /// The `+X` face.
     PosX = POS_X_DISC,
+    /// The `+Y` face.
     PosY = POS_Y_DISC,
+    /// The `+Z` face.
     PosZ = POS_Z_DISC,
 }
 const _: () = isit::const_assert_all([
@@ -102,25 +126,27 @@ impl Default for Face {
 
 use Face::*;
 
-/// A padded Cayley table for values associated with each [Face].
+/// A lookup table for values associated with each [Face].
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FaceTable<T: Copy = Face>(pub [T; 6]);
 
 impl<T: Copy> FaceTable<T> {
+    /// Create a new [FaceTable] from the given `array`.
     #[must_use]
     #[inline(always)]
-    pub const fn new(arr: [T; 6]) -> Self {
-        Self(arr)
+    pub const fn new(array: [T; 6]) -> Self {
+        Self(array)
     }
     
-    /// Get the value stored for the given [Face].
+    /// Get the value stored for the given `face`.
     #[must_use]
     #[inline(always)]
     pub const fn get(&self, face: Face) -> T {
         self.0[face as usize]
     }
 
+    /// Set the `value` for the given `face`.
     #[inline(always)]
     pub const fn set(&mut self, face: Face, value: T) {
         self.0[face as usize] = value;
@@ -159,26 +185,37 @@ impl FaceTable<Face> {
     }
 }
 
+/// A [Face] bitmask table.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FaceTableBits(u8);
+pub struct FaceBitsTable(u8);
 
-impl FaceTableBits {
+impl FaceBitsTable {
     #[must_use]
     #[inline(always)]
     pub const fn get(self, face: Face) -> bool {
         self.0 & (1 << face as u8) != 0
     }
+
+    #[inline(always)]
+    pub const fn set(&mut self, face: Face, value: bool) {
+        if value {
+            self.0 |= 1 << face as u8;
+        } else {
+            self.0 &= !(1 << face as u8);
+        }
+    }
 }
 
-pub(crate) const fn face_table_bits(
+/// Construct a [FaceBitsTable] from the given axial direction values.
+pub(crate) const fn axial_face_bits_table(
     neg_x: bool,
     neg_y: bool,
     neg_z: bool,
     pos_x: bool,
     pos_y: bool,
     pos_z: bool,
-) -> FaceTableBits {
+) -> FaceBitsTable {
     const fn set_bit_if(bits: u8, bit: u8, condition: bool) -> u8 {
         if condition {
             bits | bit
@@ -193,12 +230,11 @@ pub(crate) const fn face_table_bits(
     bits = set_bit_if(bits, 1 << Face::PosX as u8, pos_x);
     bits = set_bit_if(bits, 1 << Face::PosY as u8, pos_y);
     bits = set_bit_if(bits, 1 << Face::PosZ as u8, pos_z);
-    FaceTableBits(bits)
+    FaceBitsTable(bits)
 }
 
-/// Create a new face Cayley table.
-/// This function ensures that each value ends up in the right slot.
-pub(crate) const fn face_table<T: Copy>(
+/// Create a new [FaceTable] from the given axial values.
+pub(crate) const fn axial_face_table<T: Copy>(
     neg_x: T,
     neg_y: T,
     neg_z: T,
@@ -236,7 +272,7 @@ pub enum AngleDirection {
     CW = 1,
 }
 
-/// Create a Cayley table for face at angle tables, configured for the AngleDirection.
+/// Create a lookup table for face at angle tables.
 const fn face_at_angle(
     up: FaceTable<Face>,
     left: FaceTable<Face>,
@@ -249,6 +285,8 @@ const fn face_at_angle(
     }
 }
 
+/// The Up direction's [Face], as configured by the coordinate
+/// system feature flags.
 const UP_DIRECTION: Face = cfg_select!(
     feature = "neg_x_up" => Face::NegX,
     feature = "neg_y_up" => Face::NegY,
@@ -259,6 +297,8 @@ const UP_DIRECTION: Face = cfg_select!(
     _ => compile_error!("Must have up direction feature enabled."),
 );
 
+/// The Right direction's [Face], as configured by the coordinate
+/// system feature flags.
 const RIGHT_DIRECTION: Face = cfg_select!(
     feature = "neg_x_right" => Face::NegX,
     feature = "neg_y_right" => Face::NegY,
@@ -269,6 +309,8 @@ const RIGHT_DIRECTION: Face = cfg_select!(
     _ => compile_error!("Must have right direction feature enabled."),
 );
 
+/// The Forward direction's [Face], as configured by the coordinate
+/// system feature flags.
 const FORWARD_DIRECTION: Face = cfg_select!(
     feature = "neg_x_forward" => Face::NegX,
     feature = "neg_y_forward" => Face::NegY,
@@ -279,6 +321,10 @@ const FORWARD_DIRECTION: Face = cfg_select!(
     _ => compile_error!("Must have forward direction feature enabled."),
 );
 
+/// Determine the `Up` face for the given face.
+///
+/// The `Up` face is the face that points in the same direction as
+/// "Up" on the 2D plane of the [Face].
 const fn calc_face_up(face: Face) -> Face {
     match face {
         Face::UP => Face::FORWARD,
@@ -290,6 +336,10 @@ const fn calc_face_up(face: Face) -> Face {
     }
 }
 
+/// Determine the `Left` face for the given face.
+///
+/// The `Left` face is the face that points in the same direction as
+/// "Left" on the 2D plane of the [Face].
 const fn calc_face_left(face: Face) -> Face {
     match face {
         Face::UP => Face::LEFT,
@@ -317,8 +367,8 @@ impl Face {
     /// The Backward face within the configured coordinate system.
     pub const BACKWARD: Self = FORWARD_DIRECTION.invert();
     
-    /// The angle direction determines which direction that
-    /// angles increase, whether clockwise or counter-clockwise.
+    /// The angle direction determines which direction angles
+    /// increase, whether clockwise or counter-clockwise.
     pub const ANGLE_DIRECTION: AngleDirection = cfg_select!(
         feature = "clockwise-angles" => AngleDirection::CW,
         _ => AngleDirection::CCW,
@@ -342,7 +392,7 @@ impl Face {
     // that orientation. You do should not change these tables.
 
     /// Determines which direction points upward relative to each face.
-    pub(crate) const UP_CAYLEY:    FaceTable<Face> = face_table(
+    pub(crate) const UP_FACE_TABLE:    FaceTable<Face> = axial_face_table(
         calc_face_up(NegX),
         calc_face_up(NegY),
         calc_face_up(NegZ),
@@ -351,7 +401,7 @@ impl Face {
         calc_face_up(PosZ),
     );
     /// Determines which direction points leftward relative to each face.
-    pub(crate) const LEFT_CAYLEY:  FaceTable<Face> = face_table(
+    pub(crate) const LEFT_FACE_TABLE:  FaceTable<Face> = axial_face_table(
         calc_face_left(NegX),
         calc_face_left(NegY),
         calc_face_left(NegZ),
@@ -360,56 +410,56 @@ impl Face {
         calc_face_left(PosZ),
     );
     /// Determines which direction points downward relative to each face.
-    pub(crate) const DOWN_CAYLEY:  FaceTable<Face> = Self::UP_CAYLEY.invert();
+    pub(crate) const DOWN_FACE_TABLE:  FaceTable<Face> = Self::UP_FACE_TABLE.invert();
     /// Determines which direction points rightward relative to each face.
-    pub(crate) const RIGHT_CAYLEY: FaceTable<Face> = Self::LEFT_CAYLEY.invert();
+    pub(crate) const RIGHT_FACE_TABLE: FaceTable<Face> = Self::LEFT_FACE_TABLE.invert();
 
     /// Determines which direction points upward for each face at each angle.
-    pub(crate) const UP_AT_ANGLE_CAYLEY: [FaceTable<Face>; 4] = face_at_angle(
-        Self::UP_CAYLEY,
-        Self::LEFT_CAYLEY,
-        Self::DOWN_CAYLEY,
-        Self::RIGHT_CAYLEY,
+    pub(crate) const UP_AT_ANGLE_TABLE: [FaceTable<Face>; 4] = face_at_angle(
+        Self::UP_FACE_TABLE,
+        Self::LEFT_FACE_TABLE,
+        Self::DOWN_FACE_TABLE,
+        Self::RIGHT_FACE_TABLE,
     );
 
     /// Determines which direction points leftward for each face at each angle.
-    pub(crate) const LEFT_AT_ANGLE_CAYLEY: [FaceTable<Face>; 4] = face_at_angle(
-        Self::LEFT_CAYLEY,
-        Self::DOWN_CAYLEY,
-        Self::RIGHT_CAYLEY,
-        Self::UP_CAYLEY,
+    pub(crate) const LEFT_AT_ANGLE_TABLE: [FaceTable<Face>; 4] = face_at_angle(
+        Self::LEFT_FACE_TABLE,
+        Self::DOWN_FACE_TABLE,
+        Self::RIGHT_FACE_TABLE,
+        Self::UP_FACE_TABLE,
     );
 
     /// Determines which direction points downward for each face at each angle.
-    pub(crate) const DOWN_AT_ANGLE_CAYLEY: [FaceTable<Face>; 4] = face_at_angle(
-        Self::DOWN_CAYLEY,
-        Self::RIGHT_CAYLEY,
-        Self::UP_CAYLEY,
-        Self::LEFT_CAYLEY,
+    pub(crate) const DOWN_AT_ANGLE_TABLE: [FaceTable<Face>; 4] = face_at_angle(
+        Self::DOWN_FACE_TABLE,
+        Self::RIGHT_FACE_TABLE,
+        Self::UP_FACE_TABLE,
+        Self::LEFT_FACE_TABLE,
     );
 
     /// Determines which direction points rightward for each face at each angle.
-    pub(crate) const RIGHT_AT_ANGLE_CAYLEY: [FaceTable<Face>; 4] = face_at_angle(
-        Self::RIGHT_CAYLEY,
-        Self::UP_CAYLEY,
-        Self::LEFT_CAYLEY,
-        Self::DOWN_CAYLEY,
+    pub(crate) const RIGHT_AT_ANGLE_TABLE: [FaceTable<Face>; 4] = face_at_angle(
+        Self::RIGHT_FACE_TABLE,
+        Self::UP_FACE_TABLE,
+        Self::LEFT_FACE_TABLE,
+        Self::DOWN_FACE_TABLE,
     );
 
     //                                                      Order: NegX, NegY, NegZ, PosX, PosY, PosZ
     /// The inversion of each face.
-    pub(crate) const INVERT_TABLE: FaceTable<Face> = face_table(PosX, PosY, PosZ, NegX, NegY, NegZ);
+    pub(crate) const INVERT_TABLE: FaceTable<Face> = axial_face_table(PosX, PosY, PosZ, NegX, NegY, NegZ);
 
     //                                                         Order: NegX, NegY, NegZ, PosX, PosY, PosZ
-    pub(crate) const INVERT_X_CAYLEY: FaceTable<Face> = face_table(PosX, NegY, NegZ, NegX, PosY, PosZ);
-    pub(crate) const INVERT_Y_CAYLEY: FaceTable<Face> = face_table(NegX, PosY, NegZ, PosX, NegY, PosZ);
-    pub(crate) const INVERT_Z_CAYLEY: FaceTable<Face> = face_table(NegX, NegY, PosZ, PosX, PosY, NegZ);
+    pub(crate) const INVERT_X_TABLE: FaceTable<Face> = axial_face_table(PosX, NegY, NegZ, NegX, PosY, PosZ);
+    pub(crate) const INVERT_Y_TABLE: FaceTable<Face> = axial_face_table(NegX, PosY, NegZ, PosX, NegY, PosZ);
+    pub(crate) const INVERT_Z_TABLE: FaceTable<Face> = axial_face_table(NegX, NegY, PosZ, PosX, PosY, NegZ);
 
-    pub(crate) const INVERT_XY_CAYLEY: FaceTable<Face> = face_table(PosX, PosY, NegZ, NegX, NegY, PosZ);
-    pub(crate) const INVERT_XZ_CAYLEY: FaceTable<Face> = face_table(PosX, NegY, PosZ, NegX, PosY, NegZ);
-    pub(crate) const INVERT_YZ_CAYLEY: FaceTable<Face> = face_table(NegX, PosY, PosZ, PosX, NegY, NegZ);
+    pub(crate) const INVERT_XY_TABLE: FaceTable<Face> = axial_face_table(PosX, PosY, NegZ, NegX, NegY, PosZ);
+    pub(crate) const INVERT_XZ_TABLE: FaceTable<Face> = axial_face_table(PosX, NegY, PosZ, NegX, PosY, NegZ);
+    pub(crate) const INVERT_YZ_TABLE: FaceTable<Face> = axial_face_table(NegX, PosY, PosZ, PosX, NegY, NegZ);
 
-    pub(crate) const INVERT_VERTICAL_CAYLEY: FaceTable<Face> = {
+    pub(crate) const INVERT_VERTICAL_TABLE: FaceTable<Face> = {
         const fn calc(face: Face) -> Face {
             match face {
                 Face::UP => Face::DOWN,
@@ -417,13 +467,13 @@ impl Face {
                 other => other,
             }
         }
-        face_table(
+        axial_face_table(
             calc(NegX), calc(NegY), calc(NegZ),
             calc(PosX), calc(PosY), calc(PosZ),
         )
     };
 
-    pub(crate) const INVERT_LEFT_RIGHT_CAYLEY: FaceTable<Face> = {
+    pub(crate) const INVERT_LEFT_RIGHT_TABLE: FaceTable<Face> = {
         const fn calc(face: Face) -> Face {
             match face {
                 Face::LEFT => Face::RIGHT,
@@ -431,13 +481,13 @@ impl Face {
                 other => other,
             }
         }
-        face_table(
+        axial_face_table(
             calc(NegX), calc(NegY), calc(NegZ),
             calc(PosX), calc(PosY), calc(PosZ),
         )
     };
 
-    pub(crate) const INVERT_FRONT_BACK_CAYLEY: FaceTable<Face> = {
+    pub(crate) const INVERT_FRONT_BACK_TABLE: FaceTable<Face> = {
         const fn calc(face: Face) -> Face {
             match face {
                 Face::FORWARD => Face::BACKWARD,
@@ -445,7 +495,7 @@ impl Face {
                 other => other,
             }
         }
-        face_table(
+        axial_face_table(
             calc(NegX), calc(NegY), calc(NegZ),
             calc(PosX), calc(PosY), calc(PosZ),
         )
@@ -453,12 +503,21 @@ impl Face {
 
     // --- CONSTRUCTORS ---
 
+    /// Create a [Face] from a raw [u8] value without checking
+    /// if it is a valid [Face] bit representation.
+    ///
+    /// # SAFETY
+    /// If you provide an invalid bit representation, the behavior
+    /// is undefined. Valid bit representations are `0 <= n < 6`.
     #[must_use]
     #[inline(always)]
     pub const unsafe fn from_u8_unchecked(value: u8) -> Self {
         unsafe { ::core::mem::transmute(value) }
     }
 
+    /// Attempt to create a [Face] from a raw [u8] value.
+    ///
+    /// If [Face] can not be represented with that value, returns [None].
     #[must_use]
     #[inline(always)]
     pub const fn from_u8(value: u8) -> Option<Self> {
@@ -470,51 +529,58 @@ impl Face {
 
     // --- ACCESSORS ---
 
+    /// Return the [u8] discriminant value.
     #[must_use]
     #[inline(always)]
     pub const fn as_u8(self) -> u8 {
         self as u8
     }
 
+    /// Returns the [Axis] of this [Face].
     #[must_use]
     #[inline(always)]
     pub const fn axis(self) -> Axis {
-        const TABLE: FaceTable<Axis> = face_table(Axis::X, Axis::Y, Axis::Z, Axis::X, Axis::Y, Axis::Z);
+        const TABLE: FaceTable<Axis> = axial_face_table(Axis::X, Axis::Y, Axis::Z, Axis::X, Axis::Y, Axis::Z);
         TABLE.get(self)
     }
 
+    /// Check if the [Face] is a negative face.
     #[must_use]
     #[inline(always)]
     pub const fn is_negative(self) -> bool {
-        const TABLE: FaceTableBits = face_table_bits(
+        const TABLE: FaceBitsTable = axial_face_bits_table(
             true, true, true, false, false, false,
         );
         TABLE.get(self)
     }
 
+    /// Check if the [Face] is a positive face.
     #[must_use]
     #[inline(always)]
     pub const fn is_positive(self) -> bool {
-        const TABLE: FaceTableBits = face_table_bits(
+        const TABLE: FaceBitsTable = axial_face_bits_table(
             false, false, false, true, true, true,
         );
         TABLE.get(self)
     }
 
+    /// Return the negative variant of this [Face].
     #[must_use]
     #[inline(always)]
     pub const fn as_negative(self) -> Self {
-        const TABLE: FaceTable = face_table(NegX, NegY, NegZ, NegX, NegY, NegZ);
+        const TABLE: FaceTable = axial_face_table(NegX, NegY, NegZ, NegX, NegY, NegZ);
         TABLE.get(self)
     }
 
+    /// Returns the positive variant of this [Face].
     #[must_use]
     #[inline(always)]
     pub const fn as_positive(self) -> Self {
-        const TABLE: FaceTable = face_table(PosX, PosY, PosZ, PosX, PosY, PosZ);
+        const TABLE: FaceTable = axial_face_table(PosX, PosY, PosZ, PosX, PosY, PosZ);
         TABLE.get(self)
     }
 
+    /// Returns the variant of this [Face] with the same sign as `sign`.
     #[must_use]
     #[inline(always)]
     pub const fn with_sign(self, sign: i32) -> Self {
@@ -527,66 +593,103 @@ impl Face {
 
     // --- QUERY FUNCTIONS ---
 
+    /// Returns the Up [Face] of the given [Face].
+    ///
+    /// The Up [Face] is the face that points upward on the
+    /// 2D face plane.
     #[must_use]
     #[inline(always)]
     pub const fn up(self) -> Self {
-        Self::UP_CAYLEY.get(self)
+        Self::UP_FACE_TABLE.get(self)
     }
 
+    /// Returns the Up [Face] of the given [Face] when that face
+    /// has been rotated at the given `angle`.
+    ///
+    /// The Up [Face] is the face that points upward on the
+    /// 2D face plane.
     #[must_use]
     #[inline(always)]
     pub const fn up_at_angle(self, angle: i8) -> Self {
-        Self::UP_AT_ANGLE_CAYLEY[(angle & 3) as usize].get(self)
+        Self::UP_AT_ANGLE_TABLE[(angle & 3) as usize].get(self)
     }
 
+    /// Returns the Left [Face] of the given [Face].
+    ///
+    /// The Left [Face] is the face that points leftward on the
+    /// 2D face plane.
     #[must_use]
     #[inline(always)]
     pub const fn left(self) -> Self {
-        Self::LEFT_CAYLEY.get(self)
+        Self::LEFT_FACE_TABLE.get(self)
     }
 
+    /// Returns the Left [Face] of the given [Face] when that face
+    /// has been rotated at the given `angle`.
+    ///
+    /// The Left [Face] is the face that points leftward on the
+    /// 2D face plane.
     #[must_use]
     #[inline(always)]
     pub const fn left_at_angle(self, angle: i8) -> Self {
-        Self::LEFT_AT_ANGLE_CAYLEY[(angle & 3) as usize].get(self)
+        Self::LEFT_AT_ANGLE_TABLE[(angle & 3) as usize].get(self)
     }
 
+    /// Returns the Down [Face] of the given [Face].
+    ///
+    /// The Down [Face] is the face that points downward on the
+    /// 2D face plane.
     #[must_use]
     #[inline(always)]
     pub const fn down(self) -> Self {
-        Self::DOWN_CAYLEY.get(self)
+        Self::DOWN_FACE_TABLE.get(self)
     }
 
+    /// Returns the Down [Face] of the given [Face] when that face
+    /// has been rotated at the given `angle`.
+    ///
+    /// The Down [Face] is the face that points downward on the
+    /// 2D face plane.
     #[must_use]
     #[inline(always)]
     pub const fn down_at_angle(self, angle: i8) -> Self {
-        Self::DOWN_AT_ANGLE_CAYLEY[(angle & 3) as usize].get(self)
+        Self::DOWN_AT_ANGLE_TABLE[(angle & 3) as usize].get(self)
     }
 
+    /// Returns the Right [Face] of the given [Face].
+    ///
+    /// The Right [Face] is the face that points rightward on the
+    /// 2D face plane.
     #[must_use]
     #[inline(always)]
     pub const fn right(self) -> Self {
-        Self::RIGHT_CAYLEY.get(self)
+        Self::RIGHT_FACE_TABLE.get(self)
     }
 
+    /// Returns the Right [Face] of the given [Face] when that face
+    /// has been rotated at the given `angle`.
+    ///
+    /// The Right [Face] is the face that points rightward on the
+    /// 2D face plane.
     #[must_use]
     #[inline(always)]
     pub const fn right_at_angle(self, angle: i8) -> Self {
-        Self::RIGHT_AT_ANGLE_CAYLEY[(angle & 3) as usize].get(self)
+        Self::RIGHT_AT_ANGLE_TABLE[(angle & 3) as usize].get(self)
     }
 
-    /// Invert all axes.
+    /// Invert the [Face].
     #[must_use]
     #[inline(always)]
     pub const fn invert(self) -> Self {
         Self::INVERT_TABLE.get(self)
     }
 
+    /// Invert the [Face] if the given `condition` is met.
     #[must_use]
     #[inline(always)]
     pub const fn invert_if(self, condition: bool) -> Self {
         const TABLE: [Align8<FaceTable<Face>>; 2] = [
-            Align8(face_table(NegX, NegY, NegZ, PosX, PosY, PosZ)),
+            Align8(axial_face_table(NegX, NegY, NegZ, PosX, PosY, PosZ)),
             Align8(Face::INVERT_TABLE),
         ];
         TABLE[condition as usize].0.get(self)
@@ -596,60 +699,63 @@ impl Face {
     #[must_use]
     #[inline(always)]
     pub const fn invert_x(self) -> Self {
-        Self::INVERT_X_CAYLEY.get(self)
+        Self::INVERT_X_TABLE.get(self)
     }
 
     /// Invert the `Y` axis.
     #[must_use]
     #[inline(always)]
     pub const fn invert_y(self) -> Self {
-        Self::INVERT_Y_CAYLEY.get(self)
+        Self::INVERT_Y_TABLE.get(self)
     }
 
     /// Invert the `Z` axis.
     #[must_use]
     #[inline(always)]
     pub const fn invert_z(self) -> Self {
-        Self::INVERT_Z_CAYLEY.get(self)
+        Self::INVERT_Z_TABLE.get(self)
     }
 
     /// Invert the `X` and `Y` axes.
     #[must_use]
     #[inline(always)]
     pub const fn invert_xy(self) -> Self {
-        Self::INVERT_XY_CAYLEY.get(self)
+        Self::INVERT_XY_TABLE.get(self)
     }
 
     /// Invert the `X` and `Z` axes.
     #[must_use]
     #[inline(always)]
     pub const fn invert_xz(self) -> Self {
-        Self::INVERT_XZ_CAYLEY.get(self)
+        Self::INVERT_XZ_TABLE.get(self)
     }
 
     /// Invert the `Y` and `Z` axes.
     #[must_use]
     #[inline(always)]
     pub const fn invert_yz(self) -> Self {
-        Self::INVERT_YZ_CAYLEY.get(self)
+        Self::INVERT_YZ_TABLE.get(self)
     }
 
+    /// Invert the vertical axis.
     #[must_use]
     #[inline(always)]
     pub const fn invert_vertical(self) -> Self {
-        Self::INVERT_VERTICAL_CAYLEY.get(self)
+        Self::INVERT_VERTICAL_TABLE.get(self)
     }
 
+    /// Invert the left/right axis.
     #[must_use]
     #[inline(always)]
     pub const fn invert_left_right(self) -> Self {
-        Self::INVERT_LEFT_RIGHT_CAYLEY.get(self)
+        Self::INVERT_LEFT_RIGHT_TABLE.get(self)
     }
 
+    /// Invert the front/back axis.
     #[must_use]
     #[inline(always)]
     pub const fn invert_front_back(self) -> Self {
-        Self::INVERT_FRONT_BACK_CAYLEY.get(self)
+        Self::INVERT_FRONT_BACK_TABLE.get(self)
     }
 
     // --- MISCELLANEOUS ---
@@ -664,6 +770,10 @@ impl Face {
         FaceIter::new()
     }
 
+    /// Iterate faces in lexicographic order.
+    ///
+    /// # Note
+    /// The order is independent of the coordinate system.
     #[must_use]
     #[inline(always)]
     pub fn lexicographic_iter() -> <[Face; 6] as IntoIterator>::IntoIter {
@@ -684,6 +794,7 @@ impl Face {
         self as u8 != other as u8
     }
 
+    /// The [i8] coordinate of this [Face].
     #[must_use]
     #[inline]
     pub const fn to_coord_i8(self) -> [i8; 3] {
@@ -697,6 +808,7 @@ impl Face {
         }
     }
 
+    /// The [i16] coordinate of this [Face].
     #[must_use]
     #[inline]
     pub const fn to_coord_i16(self) -> [i16; 3] {
@@ -710,6 +822,7 @@ impl Face {
         }
     }
 
+    /// The [i32] coordinate of this [Face].
     #[must_use]
     #[inline]
     pub const fn to_coord_i32(self) -> [i32; 3] {
@@ -723,6 +836,7 @@ impl Face {
         }
     }
 
+    /// The [i64] coordinate of this [Face].
     #[must_use]
     #[inline]
     pub const fn to_coord_i64(self) -> [i64; 3] {
@@ -736,6 +850,7 @@ impl Face {
         }
     }
 
+    /// The [f32] coordinate of this [Face].
     #[must_use]
     #[inline]
     pub const fn to_coord_f32(self) -> [f32; 3] {
@@ -749,6 +864,7 @@ impl Face {
         }
     }
 
+    /// The [f64] coordinate of this [Face].
     #[must_use]
     #[inline]
     pub const fn to_coord_f64(self) -> [f64; 3] {
@@ -762,9 +878,14 @@ impl Face {
         }
     }
 
+    /// Check if `self` is orthogonal to `other`.
+    ///
+    /// A face is considered orthogonal to another one when it is
+    /// on a different axis.
     #[must_use]
     #[inline(always)]
     pub const fn is_orthogonal_to(self, other: Face) -> bool {
+        // TODO: This can be made into a 64-bit mask `(8 * 6)`.
         self.axis().is_orthogonal_to(other.axis())
     }
 
