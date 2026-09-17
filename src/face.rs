@@ -191,12 +191,14 @@ impl FaceTable<Face> {
 pub struct FaceBitsTable(u8);
 
 impl FaceBitsTable {
+    /// Get the bit value for the given `face`.
     #[must_use]
     #[inline(always)]
     pub const fn get(self, face: Face) -> bool {
         self.0 & (1 << face as u8) != 0
     }
 
+    /// Set the bit `value` for the given `face`.
     #[inline(always)]
     pub const fn set(&mut self, face: Face, value: bool) {
         if value {
@@ -216,21 +218,14 @@ pub(crate) const fn axial_face_bits_table(
     pos_y: bool,
     pos_z: bool,
 ) -> FaceBitsTable {
-    const fn set_bit_if(bits: u8, bit: u8, condition: bool) -> u8 {
-        if condition {
-            bits | bit
-        } else {
-            bits
-        }
-    }
-    let mut bits = 0u8;
-    bits = set_bit_if(bits, 1 << Face::NegX as u8, neg_x);
-    bits = set_bit_if(bits, 1 << Face::NegY as u8, neg_y);
-    bits = set_bit_if(bits, 1 << Face::NegZ as u8, neg_z);
-    bits = set_bit_if(bits, 1 << Face::PosX as u8, pos_x);
-    bits = set_bit_if(bits, 1 << Face::PosY as u8, pos_y);
-    bits = set_bit_if(bits, 1 << Face::PosZ as u8, pos_z);
-    FaceBitsTable(bits)
+    let mut bits = FaceBitsTable(0u8);
+    bits.set(Face::NegX, neg_x);
+    bits.set(Face::NegY, neg_y);
+    bits.set(Face::NegZ, neg_z);
+    bits.set(Face::PosX, pos_x);
+    bits.set(Face::PosY, pos_y);
+    bits.set(Face::PosZ, pos_z);
+    bits
 }
 
 /// Create a new [FaceTable] from the given axial values.
