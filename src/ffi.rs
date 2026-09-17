@@ -6,7 +6,7 @@ use crate::{
     RotIter,
     CartesianRotIter,
     FaceTable,
-    face_table,
+    axial_face_table,
 };
 
 macro_rules! lambda {
@@ -129,7 +129,7 @@ lambda!{
         pos_y: Face,
         pos_z: Face,
     ) -> FaceTable<Face>
-        => face_table(neg_x, neg_y, neg_z, pos_x, pos_y, pos_z),
+        => axial_face_table(neg_x, neg_y, neg_z, pos_x, pos_y, pos_z),
     /// Create a Cayley (lookup) table for [Rot] values that can be indexed with [Face].
     fn sym_rot_face_cayley(
         neg_x: Rot,
@@ -139,7 +139,7 @@ lambda!{
         pos_y: Rot,
         pos_z: Rot,
     ) -> FaceTable<Rot>
-        => face_table(neg_x, neg_y, neg_z, pos_x, pos_y, pos_z),
+        => axial_face_table(neg_x, neg_y, neg_z, pos_x, pos_y, pos_z),
     /// Get a [Face] from a [FaceCayley] (lookup) table.
     fn sym_face_cayley_get(cayley: FaceTable<Face>, face: Face) -> Face
         => cayley.get(face),
