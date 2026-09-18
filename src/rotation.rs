@@ -1125,12 +1125,15 @@ impl Rot {
             let mut bits = 0u8;
             while let Some(rot) = it.next() {
                 let cycle_count = count_cycle(rot);
+                if !matches!(cycle_count, 1..=4) {
+                    panic!("Out of range.");
+                }
                 table.set(rot, unsafe { RotCycleCount::from_u8_unchecked(cycle_count) });
                 bits |= 1 << cycle_count;
             }
-            // This check ensures that all counts from 0 to 3 are specified.
+            // This check ensures that all counts from 1 to 4 are specified.
             if bits != 30 {
-                panic!("Bits was unexpected value.");
+                panic!("Not all cycle counts that were expected were encountered.");
             }
             table
         };
