@@ -239,7 +239,7 @@ pub(crate) const fn axial_face_table<T: Copy>(
 ) -> FaceTable<T> {
     // This is a somewhat convoluted way to ensure that changing
     // the discriminant ordering of Face does not break the
-    // Cayley tables.
+    // lookup tables.
     use ::core::mem::MaybeUninit;
     let mut table = [MaybeUninit::<T>::uninit(); 6];
     table[Face::NegX as usize].write(neg_x);
@@ -387,7 +387,7 @@ impl Face {
     // that orientation. You do should not change these tables.
 
     /// Determines which direction points upward relative to each face.
-    pub(crate) const UP_FACE_TABLE:    FaceTable<Face> = axial_face_table(
+    pub(crate) const UP_FACE_TABLE: FaceTable<Face> = axial_face_table(
         calc_face_up(NegX),
         calc_face_up(NegY),
         calc_face_up(NegZ),
@@ -396,7 +396,7 @@ impl Face {
         calc_face_up(PosZ),
     );
     /// Determines which direction points leftward relative to each face.
-    pub(crate) const LEFT_FACE_TABLE:  FaceTable<Face> = axial_face_table(
+    pub(crate) const LEFT_FACE_TABLE: FaceTable<Face> = axial_face_table(
         calc_face_left(NegX),
         calc_face_left(NegY),
         calc_face_left(NegZ),
@@ -405,7 +405,7 @@ impl Face {
         calc_face_left(PosZ),
     );
     /// Determines which direction points downward relative to each face.
-    pub(crate) const DOWN_FACE_TABLE:  FaceTable<Face> = Self::UP_FACE_TABLE.invert();
+    pub(crate) const DOWN_FACE_TABLE: FaceTable<Face> = Self::UP_FACE_TABLE.invert();
     /// Determines which direction points rightward relative to each face.
     pub(crate) const RIGHT_FACE_TABLE: FaceTable<Face> = Self::LEFT_FACE_TABLE.invert();
 
