@@ -68,8 +68,8 @@ macro_rules! make_sym {
 
 const fn invert_left_right_if(face: Face, condition: bool) -> Face {
     const TABLE: [Align8<FaceTable<Face>>; 2] = [
-        Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::RIGHT, Face::BACKWARD, Face::LEFT, Face::DOWN)),
         Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::LEFT, Face::BACKWARD, Face::RIGHT, Face::DOWN)),
+        Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::RIGHT, Face::BACKWARD, Face::LEFT, Face::DOWN)),
     ];
     TABLE[condition as usize].0.get(face)
 }
@@ -167,9 +167,9 @@ impl Sym {
             while let Some(sym) = sym_it.next() {
                 let mut face_it = Face::iter();
                 while let Some(face) = face_it.next() {
-                    let inv_face = invert_left_right_if(face, sym.is_reflected());
-                    let rot_face = sym.rot().face_dest(inv_face);
-                    table[sym as usize].0.set(face, rot_face);
+                    let rot_face = sym.rot().face_dest(face);
+                    let inv_face = invert_left_right_if(rot_face, sym.is_reflected());
+                    table[sym as usize].0.set(face, inv_face);
                 }
             }
             table
@@ -204,11 +204,14 @@ impl Sym {
             let fwd = target.face_dest(Face::FORWARD);
             let trans_up = transform.face_dest(up);
             let trans_fwd = transform.face_dest(fwd);
+            let final_up = invert_left_right_if(trans_up, reflected);
+            let final_fwd = invert_left_right_if(trans_fwd, reflected);
             let rot: Rot = unsafe {
-                ::core::mem::transmute(Rot::from_up_and_forward(trans_up, trans_fwd))
+                ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
             };
             Sym::new(rot, reflected)
         }
+        // 64 * 48 = 3072
         const TABLE: [Align64<SymTable<Sym>>; 48] = {
             let mut table = [Align64(SymTable([Sym::IDENTITY; _])); _];
             let mut it = Sym::cartesian_product();
@@ -229,11 +232,14 @@ impl Sym {
             let fwd = target.face_dest(Face::FORWARD);
             let trans_up = transform.face_src(up);
             let trans_fwd = transform.face_src(fwd);
+            let final_up = invert_left_right_if(trans_up, reflected);
+            let final_fwd = invert_left_right_if(trans_fwd, reflected);
             let rot: Rot = unsafe {
-                ::core::mem::transmute(Rot::from_up_and_forward(trans_up, trans_fwd))
+                ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
             };
             Sym::new(rot, reflected)
         }
+        // 64 * 48 = 3072
         const TABLE: [Align64<SymTable<Sym>>; 48] = {
             let mut table = [Align64(SymTable([Sym::IDENTITY; _])); _];
             let mut it = Sym::cartesian_product();
@@ -314,6 +320,11 @@ impl Sym {
         TABLE[self as usize].0.get(face)
     }
 
+    /// Determine the angle of `face` in its destination after transformation.
+    ///
+    /// This angle determines which direction is the face's up. For reflected
+    /// symmetries, the left and right are swapped, which means that the angle
+    /// may seem inverted from the perspective of the non-reflected face.
     #[must_use]
     #[inline(always)]
     pub const fn dest_face_angle(self, face: Face) -> i8 {
@@ -446,7 +457,7 @@ impl<const PRODUCTS: usize> CartesianSymIter<PRODUCTS> {
     #[must_use]
     pub const fn current(&mut self) -> Option<[Sym; PRODUCTS]> {
         if const { PRODUCTS == 0 } { return None; }
-        if self.it[0] > Rot::MAX as u8 { return None; }
+        if self.it[0] > Sym::MAX as u8 { return None; }
         Some(unsafe {
             CartTransmuter { u8_prods: self.it }.sym_prods
         })
@@ -462,7 +473,7 @@ impl<const PRODUCTS: usize> CartesianSymIter<PRODUCTS> {
         let mut i = PRODUCTS;
         loop {
             i -= 1;
-            if i == 0 || self.it[i] < 23 {
+            if i == 0 || self.it[i] < 47 {
                 self.it[i] += 1;
                 break;
             }
@@ -492,12 +503,24 @@ mod tests {
                 let src = sym.face_src(face);
                 let dest = sym.face_dest(src);
                 assert_eq!(face, dest);
+                let dest = sym.face_dest(face);
+                let src = sym.face_src(dest);
+                assert_eq!(face, src);
+            }
+            for trans in Sym::iter() {
+                let to = sym.transform_by(trans);
+                let from = to.transform_by_inverse(trans);
+                assert_eq!(sym, from);
             }
         }
-        for [lhs, rhs] in Sym::cartesian_product() {
-            let trans = lhs.transform_by(rhs);
-            let back = trans.transform_by_inverse(rhs);
-            assert_eq!(lhs, back);
+    }
+
+    #[test]
+    pub fn associativity_test() {
+        for [sym_x, sym_y, sym_z] in Sym::cartesian_product() {
+            let a = sym_x.transform_by(sym_y).transform_by(sym_z);
+            let b = sym_x.transform_by(sym_y.transform_by(sym_z));
+            assert_eq!(a, b);
         }
     }
 }
