@@ -167,9 +167,9 @@ impl Sym {
             while let Some(sym) = sym_it.next() {
                 let mut face_it = Face::iter();
                 while let Some(face) = face_it.next() {
-                    let rot_face = sym.rot().face_dest(face);
-                    let inv_face = invert_left_right_if(rot_face, sym.is_reflected());
-                    table[sym as usize].0.set(face, inv_face);
+                    let inv_face = invert_left_right_if(face, sym.is_reflected());
+                    let rot_face = sym.rot().face_dest(inv_face);
+                    table[sym as usize].0.set(face, rot_face);
                 }
             }
             table
@@ -204,10 +204,8 @@ impl Sym {
             let fwd = target.face_dest(Face::FORWARD);
             let trans_up = transform.face_dest(up);
             let trans_fwd = transform.face_dest(fwd);
-            let final_up = invert_left_right_if(trans_up, reflected);
-            let final_fwd = invert_left_right_if(trans_fwd, reflected);
             let rot: Rot = unsafe {
-                ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
+                ::core::mem::transmute(Rot::from_up_and_forward(trans_up, trans_fwd))
             };
             Sym::new(rot, reflected)
         }
@@ -232,10 +230,8 @@ impl Sym {
             let fwd = target.face_dest(Face::FORWARD);
             let trans_up = transform.face_src(up);
             let trans_fwd = transform.face_src(fwd);
-            let final_up = invert_left_right_if(trans_up, reflected);
-            let final_fwd = invert_left_right_if(trans_fwd, reflected);
             let rot: Rot = unsafe {
-                ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
+                ::core::mem::transmute(Rot::from_up_and_forward(trans_up, trans_fwd))
             };
             Sym::new(rot, reflected)
         }
@@ -507,6 +503,11 @@ mod tests {
                 let src = sym.face_src(dest);
                 assert_eq!(face, src);
             }
+            let rot_up = sym.rot().up();
+            let rot_fwd = sym.rot().forward();
+            let sym_up = sym.face_dest(Face::UP);
+            let sym_fwd = sym.face_dest(Face::FORWARD);
+            assert_eq!((rot_up, rot_fwd), (sym_up, sym_fwd));
             for trans in Sym::iter() {
                 let to = sym.transform_by(trans);
                 let from = to.transform_by_inverse(trans);
