@@ -1522,14 +1522,10 @@ mod tests {
 
     #[test]
     pub fn associativity_test() {
-        for rot_x in Rot::iter() {
-            for rot_y in Rot::iter() {
-                for rot_z in Rot::iter() {
-                    let a = rot_x.rotate_by(rot_y).rotate_by(rot_z);
-                    let b = rot_x.rotate_by(rot_y.rotate_by(rot_z));
-                    assert_eq!(a, b);
-                }
-            }
+        for [rot_x, rot_y, rot_z] in Rot::cartesian_product() {
+            let a = rot_x.rotate_by(rot_y).rotate_by(rot_z);
+            let b = rot_x.rotate_by(rot_y.rotate_by(rot_z));
+            assert_eq!(a, b);
         }
     }
 }
