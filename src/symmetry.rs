@@ -372,6 +372,49 @@ impl Sym {
         TABLE[self as usize].0.get(face)
     }
 
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert(self) -> Self {
+        const TABLE: SymTable<Sym> = {
+            let mut table = SymTable([Sym::IDENTITY; _]);
+            let mut sym_it = Sym::iter();
+            while let Some(sym) = sym_it.next() {
+                let inverted = Sym::IDENTITY.transform_by_inverse(sym);
+                table.set(sym, inverted);
+            }
+            table
+        };
+        TABLE.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn diff(self, other: Self) -> Self {
+        const TABLE: [Align64<SymTable<Sym>>; 48] = {
+            let mut table = [Align64(SymTable([Sym::IDENTITY; _])); _];
+            let mut it = Sym::cartesian_product();
+            while let Some([lhs, rhs]) = it.next() {
+                table[lhs as usize].0.set(rhs, lhs.invert().transform_by(rhs));
+            }
+            table
+        };
+        TABLE[self as usize].0.get(other)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn conjugate(self, transform: Self) -> Self {
+        const TABLE: [Align64<SymTable<Sym>>; 48] = {
+            let mut table = [Align64(SymTable([Sym::IDENTITY; _])); _];
+            let mut it = Sym::cartesian_product();
+            while let Some([lhs, rhs]) = it.next() {
+                table[lhs as usize].0.set(rhs, lhs.invert().transform_by(rhs).transform_by(lhs));
+            }
+            table
+        };
+        TABLE[self as usize].0.get(transform)
+    }
+
     // --- MISCELLANEOUS ---
 
     #[must_use]
@@ -508,10 +551,21 @@ mod tests {
             let sym_up = sym.face_dest(Face::UP);
             let sym_fwd = sym.face_dest(Face::FORWARD);
             assert_eq!((rot_up, rot_fwd), (sym_up, sym_fwd));
+            let inv = sym.invert();
             for trans in Sym::iter() {
                 let to = sym.transform_by(trans);
                 let from = to.transform_by_inverse(trans);
                 assert_eq!(sym, from);
+                let a = trans.transform_by_inverse(sym);
+                let b = trans.transform_by(inv);
+                assert_eq!(a, b);
+                let diff = sym.diff(trans);
+                let by_diff = sym.transform_by(diff);
+                assert_eq!(trans, by_diff);
+                let conj = sym.conjugate(trans);
+                let local1 = sym.local_transform_by(trans);
+                let local2 = sym.transform_by(conj);
+                assert_eq!(local1, local2);
             }
         }
     }
