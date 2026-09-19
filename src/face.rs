@@ -7,6 +7,8 @@
 // These values ensure that orientations look the same regardless of coordinate system.
 // The order ensures that rotations increase in a certain logical order.
 
+use ::core::mem::MaybeUninit;
+
 use crate::{
     axis::Axis,
     align::*,
@@ -228,6 +230,35 @@ pub(crate) const fn axial_face_bits_table(
     bits
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+union TableConvert<T: Copy> {
+    uninit: [MaybeUninit<T>; 6],
+    init: [T; 6],
+}
+
+pub(crate) const fn cardinal_face_table<T: Copy>(
+    up: T,
+    forward: T,
+    left: T,
+    backward: T,
+    right: T,
+    down: T,
+) -> FaceTable<T> {
+    // This is a somewhat convoluted way to ensure that changing
+    // the discriminant ordering of Face does not break the
+    // lookup tables.
+    use ::core::mem::MaybeUninit;
+    let mut table = [MaybeUninit::<T>::uninit(); 6];
+    table[Face::UP as usize].write(up);
+    table[Face::FORWARD as usize].write(forward);
+    table[Face::LEFT as usize].write(left);
+    table[Face::BACKWARD as usize].write(backward);
+    table[Face::RIGHT as usize].write(right);
+    table[Face::DOWN as usize].write(down);
+    FaceTable(unsafe { TableConvert { uninit: table }.init })
+}
+
 /// Create a new [FaceTable] from the given axial values.
 pub(crate) const fn axial_face_table<T: Copy>(
     neg_x: T,
@@ -240,7 +271,6 @@ pub(crate) const fn axial_face_table<T: Copy>(
     // This is a somewhat convoluted way to ensure that changing
     // the discriminant ordering of Face does not break the
     // lookup tables.
-    use ::core::mem::MaybeUninit;
     let mut table = [MaybeUninit::<T>::uninit(); 6];
     table[Face::NegX as usize].write(neg_x);
     table[Face::NegY as usize].write(neg_y);
@@ -248,12 +278,6 @@ pub(crate) const fn axial_face_table<T: Copy>(
     table[Face::PosX as usize].write(pos_x);
     table[Face::PosY as usize].write(pos_y);
     table[Face::PosZ as usize].write(pos_z);
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    union TableConvert<T: Copy> {
-        uninit: [MaybeUninit<T>; 6],
-        init: [T; 6],
-    }
     FaceTable(unsafe { TableConvert { uninit: table }.init })
 }
 

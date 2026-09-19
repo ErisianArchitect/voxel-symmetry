@@ -6,6 +6,8 @@ pub mod ffi;
 pub mod rotation;
 pub mod symmetry;
 
+pub(crate) mod uv_mapping;
+
 pub use axis::*;
 pub use face::*;
 pub use rotation::*;

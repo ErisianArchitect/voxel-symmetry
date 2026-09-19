@@ -1023,9 +1023,10 @@ impl Rot {
         )
     }
 
+    /// Determines the global angle of the source face at the position of the requested `face`.
     #[must_use]
     #[inline(always)]
-    pub const fn face_angle(self, face: Face) -> i8 {
+    pub const fn src_face_angle(self, face: Face) -> i8 {
         // 24 * 6 = 144
         const TABLE: [Align8<FaceTable<i8>>; 24] = {
             let mut table = [Align8(FaceTable([0; 6])); 24];
@@ -1037,8 +1038,8 @@ impl Rot {
                     let src_up = src.up();
                     let src_up_dest = rot.face_dest(src_up);
                     let angle;
-                    match Face::ANGLE_DIRECTION {
-                        AngleDirection::CW => {
+                    cfg_select!{
+                        feature = "clockwise-angles" => {
                             if src_up_dest.eq(face.up()) {
                                 angle = 0;
                             } else if src_up_dest.eq(face.right()) {
@@ -1050,8 +1051,8 @@ impl Rot {
                             } else {
                                 unreachable!()
                             }
-                        },
-                        AngleDirection::CCW => {
+                        }
+                        not(feature = "clockwise-angles") => {
                             if src_up_dest.eq(face.up()) {
                                 angle = 0;
                             } else if src_up_dest.eq(face.left()) {
@@ -1063,9 +1064,27 @@ impl Rot {
                             } else {
                                 unreachable!()
                             }
-                        },
+                        }
                     }
                     table[rot as usize].0.set(face, angle);
+                }
+            }
+            table
+        };
+        TABLE[self as usize].0.get(face)
+    }
+
+    /// Determines the global angle of `face` in its local position.
+    #[must_use]
+    #[inline(always)]
+    pub const fn dest_face_angle(self, face: Face) -> i8 {
+        const TABLE: [Align8<FaceTable<i8>>; 24] = {
+            let mut table = [Align8(FaceTable::new([0; 6])); 24];
+            let mut rot_it = Rot::iter();
+            while let Some(rot) = rot_it.next() {
+                let mut face_it = Face::iter();
+                while let Some(face) = face_it.next() {
+                    table[rot as usize].0.set(face, rot.src_face_angle(rot.face_dest(face)));
                 }
             }
             table

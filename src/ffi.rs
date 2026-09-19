@@ -358,7 +358,7 @@ lambda!{
         => rot.invert(),
     /// Return the angle of the given `face` after rotation with the given `rot`.
     fn sym_rot_face_angle(rot: Rot, face: Face) -> i8
-        => rot.face_angle(face),
+        => rot.src_face_angle(face),
 
     /// Get the difference between `lhs` and `rhs`.
     ///

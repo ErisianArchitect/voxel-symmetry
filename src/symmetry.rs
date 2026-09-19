@@ -2,6 +2,7 @@
 use crate::{
     Face,
     FaceTable,
+    cardinal_face_table,
     Face::*,
     Rot,
     RotTable,
@@ -64,6 +65,14 @@ macro_rules! make_sym {
             }
         }
     };
+}
+
+const fn invert_left_right_if(face: Face, condition: bool) -> Face {
+    const TABLE: [Align8<FaceTable<Face>>; 2] = [
+        Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::RIGHT, Face::BACKWARD, Face::LEFT, Face::DOWN)),
+        Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::LEFT, Face::BACKWARD, Face::RIGHT, Face::DOWN)),
+    ];
+    TABLE[condition as usize].0.get(face)
 }
 
 make_sym!{
@@ -159,8 +168,9 @@ impl Sym {
             while let Some(sym) = sym_it.next() {
                 let mut face_it = Face::iter();
                 while let Some(face) = face_it.next() {
-                    let rot_face = sym.rot().face_dest(face);
-                    table[sym as usize].0.set(face, rot_face.invert_if(sym.is_reflected()));
+                    let inv_face = invert_left_right_if(face, sym.is_reflected());
+                    let rot_face = sym.rot().face_dest(inv_face);
+                    table[sym as usize].0.set(face, rot_face);
                 }
             }
             table
@@ -186,6 +196,8 @@ impl Sym {
         TABLE[self as usize].0.get(face)
     }
 
+    #[must_use]
+    #[inline(always)]
     pub const fn transform_by(self, transform: Sym) -> Self {
         const fn transform_by(target: Sym, transform: Sym) -> Sym {
             let reflected = target.is_reflected() ^ transform.is_reflected();
@@ -193,10 +205,8 @@ impl Sym {
             let fwd = target.face_dest(Face::FORWARD);
             let trans_up = transform.face_dest(up);
             let trans_fwd = transform.face_dest(fwd);
-            let final_up = trans_up.invert_if(reflected);
-            let final_fwd = trans_fwd.invert_if(reflected);
             let rot: Rot = unsafe {
-                ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
+                ::core::mem::transmute(Rot::from_up_and_forward(trans_up, trans_fwd))
             };
             Sym::new(rot, reflected)
         }
@@ -211,6 +221,8 @@ impl Sym {
         TABLE[self as usize].0.get(transform)
     }
 
+    #[must_use]
+    #[inline(always)]
     pub const fn transform_by_inverse(self, transform: Sym) -> Self {
         const fn transform_by_inverse(target: Sym, transform: Sym) -> Sym {
             let reflected = target.is_reflected() ^ transform.is_reflected();
@@ -218,10 +230,8 @@ impl Sym {
             let fwd = target.face_dest(Face::FORWARD);
             let trans_up = transform.face_src(up);
             let trans_fwd = transform.face_src(fwd);
-            let final_up = trans_up.invert_if(reflected);
-            let final_fwd = trans_fwd.invert_if(reflected);
             let rot: Rot = unsafe {
-                ::core::mem::transmute(Rot::from_up_and_forward(final_up, final_fwd))
+                ::core::mem::transmute(Rot::from_up_and_forward(trans_up, trans_fwd))
             };
             Sym::new(rot, reflected)
         }
@@ -246,6 +256,18 @@ impl Sym {
     #[inline(always)]
     pub const fn local_transform_by_inverse(self, transform: Self) -> Self {
         transform.transform_by_inverse(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn src_face_angle(self, face: Face) -> i8 {
+        todo!()
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn dest_face_angle(self, face: Face) -> i8 {
+        todo!()
     }
 
     // --- MISCELLANEOUS ---
