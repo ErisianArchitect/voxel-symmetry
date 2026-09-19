@@ -5,7 +5,6 @@ use crate::{
     cardinal_face_table,
     Face::*,
     Rot,
-    RotTable,
     align::*,
 };
 
@@ -258,16 +257,112 @@ impl Sym {
         transform.transform_by_inverse(self)
     }
 
+    /// Determines the angle of the face positioned at the location of `face`.
+    ///
+    /// This angle determines which direction is the face's up. For reflected
+    /// symmetries, the left and right are swapped, which means that the angle
+    /// may seem inverted from the perspective of the non-reflected face.
     #[must_use]
     #[inline(always)]
     pub const fn src_face_angle(self, face: Face) -> i8 {
-        todo!()
+        const TABLE: [Align8<FaceTable<i8>>; 48] = {
+            let mut table = [Align8(FaceTable([0; _])); _];
+            let mut sym_it = Sym::iter();
+            while let Some(sym) = sym_it.next() {
+                let mut face_it = Face::iter();
+                while let Some(face) = face_it.next() {
+                    let src_face = sym.face_src(face);
+                    let src_face_up = src_face.up();
+                    let src_face_up_dest = sym.face_dest(src_face_up);
+                    let angle;
+                    cfg_select!{
+                        not(feature = "clockwise-angles") => {
+                            if src_face_up_dest.eq(face.up()) {
+                                angle = 0;
+                            } else if src_face_up_dest.eq(face.left()) {
+                                angle = 1;
+                            } else if src_face_up_dest.eq(face.down()) {
+                                angle = 2;
+                            } else if src_face_up_dest.eq(face.right()) {
+                                angle = 3;
+                            } else {
+                                unreachable!();
+                            }
+                        }
+                        feature = "clockwise-angles" => {
+                            if src_face_up_dest.eq(face.up()) {
+                                angle = 0;
+                            } else if src_face_up_dest.eq(face.right()) {
+                                angle = 1;
+                            } else if src_face_up_dest.eq(face.down()) {
+                                angle = 2;
+                            } else if src_face_up_dest.eq(face.left()) {
+                                angle = 3;
+                            } else {
+                                unreachable!();
+                            }
+                        }
+                    }
+                    if src_face_up_dest.ne(face.up_at_angle(angle)) {
+                        panic!("Mismatch.");
+                    }
+                    table[sym as usize].0.set(face, angle);
+                }
+            }
+            table
+        };
+        TABLE[self as usize].0.get(face)
     }
 
     #[must_use]
     #[inline(always)]
     pub const fn dest_face_angle(self, face: Face) -> i8 {
-        todo!()
+        const TABLE: [Align8<FaceTable<i8>>; 48] = {
+            let mut table = [Align8(FaceTable([0; _])); _];
+            let mut sym_it = Sym::iter();
+            while let Some(sym) = sym_it.next() {
+                let mut face_it = Face::iter();
+                while let Some(face) = face_it.next() {
+                    let dest_face = sym.face_dest(face);
+                    let face_up_dest = sym.face_dest(face.up());
+                    let angle;
+                    cfg_select!{
+                        not(feature = "clockwise-angles") => {
+                            if face_up_dest.eq(dest_face.up()) {
+                                angle = 0;
+                            } else if face_up_dest.eq(dest_face.left()) {
+                                angle = 1;
+                            } else if face_up_dest.eq(dest_face.down()) {
+                                angle = 2;
+                            } else if face_up_dest.eq(dest_face.right()) {
+                                angle = 3;
+                            } else {
+                                unreachable!()
+                            }
+                        }
+                        feature = "clockwise-angles" => {
+                            if face_up_dest.eq(dest_face.up()) {
+                                angle = 0;
+                            } else if face_up_dest.eq(dest_face.right()) {
+                                angle = 1;
+                            } else if face_up_dest.eq(dest_face.down()) {
+                                angle = 2;
+                            } else if face_up_dest.eq(dest_face.left()) {
+                                angle = 3;
+                            } else {
+                                unreachable!()
+                            }
+                        }
+                    }
+                    if face_up_dest.ne(dest_face.up_at_angle(angle)) {
+                        panic!("Mismatch.");
+                    }
+                    table[sym as usize].0.set(face, angle);
+                }
+            }
+            table
+        };
+        TABLE[self as usize].0.get(face)
     }
 
     // --- MISCELLANEOUS ---
