@@ -66,14 +66,6 @@ macro_rules! make_sym {
     };
 }
 
-const fn invert_left_right_if(face: Face, condition: bool) -> Face {
-    const TABLE: [Align8<FaceTable<Face>>; 2] = [
-        Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::LEFT, Face::BACKWARD, Face::RIGHT, Face::DOWN)),
-        Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::RIGHT, Face::BACKWARD, Face::LEFT, Face::DOWN)),
-    ];
-    TABLE[condition as usize].0.get(face)
-}
-
 make_sym!{
     // REVIEW: Should the reflected variants also have their discriminants reflected?
     // [FACE ANGLE REFLECTION]
@@ -167,7 +159,7 @@ impl Sym {
             while let Some(sym) = sym_it.next() {
                 let mut face_it = Face::iter();
                 while let Some(face) = face_it.next() {
-                    let inv_face = invert_left_right_if(face, sym.is_reflected());
+                    let inv_face = face.invert_left_right_if(sym.is_reflected());
                     let rot_face = sym.rot().face_dest(inv_face);
                     table[sym as usize].0.set(face, rot_face);
                 }
