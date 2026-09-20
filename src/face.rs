@@ -825,7 +825,7 @@ impl Face {
     /// The order is independent of the coordinate system.
     #[must_use]
     #[inline(always)]
-    pub fn lexicographic_iter() -> LexFaceIter {
+    pub const fn iter_lexicographic() -> LexFaceIter {
         LexFaceIter::new() 
     }
 
