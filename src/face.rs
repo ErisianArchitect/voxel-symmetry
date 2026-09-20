@@ -756,7 +756,7 @@ impl Face {
         Self::INVERT_YZ_TABLE.get(self)
     }
 
-    /// Invert the vertical axis.
+    /// Invert the vertical axis. ([Face::UP] <-> [Face::DOWN])
     #[must_use]
     #[inline(always)]
     pub const fn invert_vertical(self) -> Self {
@@ -825,8 +825,8 @@ impl Face {
     /// The order is independent of the coordinate system.
     #[must_use]
     #[inline(always)]
-    pub fn lexicographic_iter() -> <[Face; 6] as IntoIterator>::IntoIter {
-        [Face::NegX, Face::NegY, Face::NegZ, Face::PosX, Face::PosY, Face::PosZ].into_iter()
+    pub fn lexicographic_iter() -> LexFaceIter {
+        LexFaceIter::new() 
     }
 
     /// Check `self` is equal to `other`.
@@ -980,6 +980,57 @@ impl FaceIter {
 }
 
 impl Iterator for FaceIter {
+    type Item = Face;
+
+    #[inline(always)]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LexFaceIter {
+    index: u8,
+}
+
+impl LexFaceIter {
+    const ORDER: [Face; 6] = [
+        Face::NegX,
+        Face::NegY,
+        Face::NegZ,
+        Face::PosX,
+        Face::PosY,
+        Face::PosZ,
+    ];
+    #[must_use]
+    #[inline(always)]
+    pub const fn new() -> Self {
+        Self { index: 0 }
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn current(&self) -> Option<Face> {
+        if self.index > 5 {
+            return None;
+        }
+        Some(Self::ORDER[self.index as usize])
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn next(&mut self) -> Option<Face> {
+        match self.current() {
+            None => None,
+            some => {
+                self.index += 1;
+                some
+            }
+        }
+    }
+}
+
+impl Iterator for LexFaceIter {
     type Item = Face;
 
     #[inline(always)]
