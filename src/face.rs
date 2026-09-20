@@ -763,6 +763,16 @@ impl Face {
         Self::INVERT_VERTICAL_TABLE.get(self)
     }
 
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_vertical_if(self, condition: bool) -> Face {
+        const TABLE: [Align8<FaceTable<Face>>; 2] = [
+            Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::LEFT, Face::BACKWARD, Face::RIGHT, Face::DOWN)),
+            Align8(cardinal_face_table(Face::DOWN, Face::FORWARD, Face::LEFT, Face::BACKWARD, Face::RIGHT, Face::UP)),
+        ];
+        TABLE[condition as usize].0.get(self)
+    }
+
     /// Invert the left/right axis.
     #[must_use]
     #[inline(always)]
@@ -770,11 +780,31 @@ impl Face {
         Self::INVERT_LEFT_RIGHT_TABLE.get(self)
     }
 
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_left_right_if(self, condition: bool) -> Face {
+        const TABLE: [Align8<FaceTable<Face>>; 2] = [
+            Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::LEFT, Face::BACKWARD, Face::RIGHT, Face::DOWN)),
+            Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::RIGHT, Face::BACKWARD, Face::LEFT, Face::DOWN)),
+        ];
+        TABLE[condition as usize].0.get(self)
+    }
+
     /// Invert the front/back axis.
     #[must_use]
     #[inline(always)]
     pub const fn invert_front_back(self) -> Self {
         Self::INVERT_FRONT_BACK_TABLE.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn invert_front_back_if(self, condition: bool) -> Self {
+        const TABLE: [Align8<FaceTable<Face>>; 2] = [
+            Align8(cardinal_face_table(Face::UP, Face::FORWARD, Face::LEFT, Face::BACKWARD, Face::RIGHT, Face::DOWN)),
+            Align8(cardinal_face_table(Face::UP, Face::BACKWARD, Face::LEFT, Face::FORWARD, Face::RIGHT, Face::DOWN)),
+        ];
+        TABLE[condition as usize].0.get(self)
     }
 
     // --- MISCELLANEOUS ---
