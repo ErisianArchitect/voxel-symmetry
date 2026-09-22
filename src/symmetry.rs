@@ -8,6 +8,72 @@ use crate::{
     align::*,
 };
 
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AchiralConjugacyClass {
+    Identity = 0,
+    EdgeBinary = 1,
+    FaceBinary = 2,
+    Ternary = 3,
+    Quaternary = 4,
+    InverseIdentity = 5,
+    InverseEdgeBinary = 6,
+    InverseFaceBinary = 7,
+    InverseTernary = 8,
+    InverseQuaternary = 9,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SymCycleCount {
+    C1 = 1,
+    C2 = 2,
+    C3 = 3,
+    C4 = 4,
+    C6 = 6,
+}
+
+impl SymCycleCount {
+    #[must_use]
+    #[inline(always)]
+    pub const unsafe fn from_u8_unchecked(value: u8) -> Self {
+        unsafe { ::core::mem::transmute(value) }
+    }
+
+    #[must_use]
+    #[inline]
+    pub const fn from_u8(value: u8) -> Option<Self> {
+        // This may seem over-the-top and unnecessary, and you would be
+        // right, but this ensures correctness.
+        const fn make_bits<const COUNT: usize>(items: [SymCycleCount; COUNT]) -> u8 {
+            let mut bits = 0u8;
+            let mut i = 0usize;
+            while i < items.len() {
+                bits |= 1 << (items[i] as u8);
+                i += 1;
+            }
+            bits
+        }
+        const BITS: u8 = make_bits([
+            SymCycleCount::C1,
+            SymCycleCount::C2,
+            SymCycleCount::C3,
+            SymCycleCount::C4,
+            SymCycleCount::C6,
+        ]);
+        if BITS & (1 << value) == 0 {
+            return None;
+        }
+        Some(unsafe { Self::from_u8_unchecked(value) })
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn count(self) -> u8 {
+        self as u8
+    }
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy)]
 pub struct SymTable<T: Copy = Sym>(pub [T; 48]);
@@ -159,7 +225,7 @@ impl Sym {
             while let Some(sym) = sym_it.next() {
                 let mut face_it = Face::iter();
                 while let Some(face) = face_it.next() {
-                    let inv_face = face.invert_left_right_if(sym.is_reflected());
+                    let inv_face = face.invert_if(sym.is_reflected());
                     let rot_face = sym.rot().face_dest(inv_face);
                     table[sym as usize].0.set(face, rot_face);
                 }
@@ -196,8 +262,10 @@ impl Sym {
             let fwd = target.face_dest(Face::FORWARD);
             let trans_up = transform.face_dest(up);
             let trans_fwd = transform.face_dest(fwd);
+            let inv_up = trans_up.invert_if(reflected);
+            let inv_fwd = trans_fwd.invert_if(reflected);
             let rot: Rot = unsafe {
-                ::core::mem::transmute(Rot::from_up_and_forward(trans_up, trans_fwd))
+                ::core::mem::transmute(Rot::from_up_and_forward(inv_up, inv_fwd))
             };
             Sym::new(rot, reflected)
         }
@@ -222,8 +290,10 @@ impl Sym {
             let fwd = target.face_dest(Face::FORWARD);
             let trans_up = transform.face_src(up);
             let trans_fwd = transform.face_src(fwd);
+            let inv_up = trans_up.invert_if(reflected);
+            let inv_fwd = trans_fwd.invert_if(reflected);
             let rot: Rot = unsafe {
-                ::core::mem::transmute(Rot::from_up_and_forward(trans_up, trans_fwd))
+                ::core::mem::transmute(Rot::from_up_and_forward(inv_up, inv_fwd))
             };
             Sym::new(rot, reflected)
         }
@@ -407,6 +477,35 @@ impl Sym {
         TABLE[self as usize].0.get(transform)
     }
 
+    #[must_use]
+    #[inline(always)]
+    pub const fn count_cycles(self) -> SymCycleCount {
+        const TABLE: SymTable<SymCycleCount> = {
+            let mut table = SymTable([SymCycleCount::C1; _]);
+            let mut it = Sym::iter();
+            while let Some(sym) = it.next() {
+                let mut count = 1;
+                let mut current = Sym::IDENTITY;
+                let count = loop {
+                    current = current.transform_by(sym);
+                    if current.eq(Sym::IDENTITY) {
+                        match count {
+                            0 | 5 | 7.. => {
+                                panic!("Invalid count.");
+                            }
+                            _ => {}
+                        }
+                        break count;
+                    }
+                    count += 1;
+                };
+                table.set(sym, unsafe { SymCycleCount::from_u8_unchecked(count) });
+            }
+            table
+        };
+        TABLE.get(self)
+    }
+
     // --- MISCELLANEOUS ---
 
     #[must_use]
@@ -419,6 +518,18 @@ impl Sym {
     #[inline(always)]
     pub const fn cartesian_product<const PRODUCTS: usize>() -> CartesianSymIter<PRODUCTS> {
         CartesianSymIter::new()
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn eq(self, other: Self) -> bool {
+        self as u8 == other as u8
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn ne(self, other: Self) -> bool {
+        self as u8 != other as u8
     }
 
 }
@@ -542,7 +653,9 @@ mod tests {
             let rot_fwd = sym.rot().forward();
             let sym_up = sym.face_dest(Face::UP);
             let sym_fwd = sym.face_dest(Face::FORWARD);
-            assert_eq!((rot_up, rot_fwd), (sym_up, sym_fwd));
+            let inv_up = sym_up.invert_if(sym.is_reflected());
+            let inv_fwd = sym_fwd.invert_if(sym.is_reflected());
+            assert_eq!((rot_up, rot_fwd), (inv_up, inv_fwd));
             let inv = sym.invert();
             for trans in Sym::iter() {
                 let to = sym.transform_by(trans);
