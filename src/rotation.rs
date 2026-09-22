@@ -325,7 +325,7 @@ impl QuarterTurns {
 /// Represents the conjugacy class of a [Rot].
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ConjugacyClass {
+pub enum ChiralConjugacyClass {
     /// The Identity class. One element ([Rot::IDENTITY]).
     Identity = 0,
     /// Edge binary. 180 degree rotations for opposing edges. Six elements.
@@ -338,20 +338,20 @@ pub enum ConjugacyClass {
     Quaternary = 4,
 }
 
-const fn determine_conjugacy_class(rot: Rot) -> ConjugacyClass {
+const fn determine_conjugacy_class(rot: Rot) -> ChiralConjugacyClass {
     let cycle_count = rot.cycle_count();
     match cycle_count {
-        RotCycleCount::C1 => ConjugacyClass::Identity,
+        RotCycleCount::C1 => ChiralConjugacyClass::Identity,
         RotCycleCount::C2 => {
             // Only two axes need to be checked because two axes would be flipped.
             if rot.is_orthogonal() {
-                ConjugacyClass::EdgeBinary
+                ChiralConjugacyClass::EdgeBinary
             } else {
-                ConjugacyClass::FaceBinary
+                ChiralConjugacyClass::FaceBinary
             }
         },
-        RotCycleCount::C3 => ConjugacyClass::Ternary,
-        RotCycleCount::C4 => ConjugacyClass::Quaternary,
+        RotCycleCount::C3 => ChiralConjugacyClass::Ternary,
+        RotCycleCount::C4 => ChiralConjugacyClass::Quaternary,
     }
 }
 
@@ -1273,6 +1273,20 @@ impl Rot {
                 }
             }
             bits
+        };
+        TABLE.get(self)
+    }
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn conjugacy_class(self) -> ChiralConjugacyClass {
+        const TABLE: RotTable<ChiralConjugacyClass> = {
+            let mut table = RotTable([ChiralConjugacyClass::Identity; _]);
+            let mut it = Rot::iter();
+            while let Some(rot) = it.next() {
+                table.set(rot, determine_conjugacy_class(rot));
+            }
+            table
         };
         TABLE.get(self)
     }
